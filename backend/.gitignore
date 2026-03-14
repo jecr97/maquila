@@ -124,3 +124,6 @@ _modules/*
 
 /results/
 /phpunit*.xml
+
+# Ignore sensitive config
+app/Config/Database.php

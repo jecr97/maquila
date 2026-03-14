@@ -58,7 +58,8 @@ export default function Login() {
       try {
         json = JSON.parse(text);
       } catch (err) {
-        console.error('Login: server returned non-JSON response', text);
+        console.error('Login: server returned non-JSON response');
+        console.log(err);
         setError('Respuesta inválida del servidor. Revisa la consola para más detalles.');
         setLoading(false);
         return;

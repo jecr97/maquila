@@ -19,12 +19,25 @@ class UsuariosController extends BaseController
     // ---------------------------------------------------------------
     public function login()
     {
-        $data = $this->request->getJSON();
+        try {
+            $data = $this->request->getJSON();
 
-        if (empty($data->usuario) || empty($data->password)) {
+            if (!is_object($data)) {
+                return $this->response
+                    ->setStatusCode(ResponseInterface::HTTP_BAD_REQUEST)
+                    ->setJSON(['success' => false, 'message' => 'JSON inválido o cabeceras ausentes.']);
+            }
+
+            if (empty($data->usuario) || empty($data->password)) {
+                return $this->response
+                    ->setStatusCode(ResponseInterface::HTTP_BAD_REQUEST)
+                    ->setJSON(['success' => false, 'message' => 'Usuario y contraseña son requeridos.']);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', 'Login error: ' . $e->getMessage());
             return $this->response
-                ->setStatusCode(ResponseInterface::HTTP_BAD_REQUEST)
-                ->setJSON(['success' => false, 'message' => 'Usuario y contraseña son requeridos.']);
+                ->setStatusCode(ResponseInterface::HTTP_INTERNAL_SERVER_ERROR)
+                ->setJSON(['success' => false, 'message' => 'Error en el servidor al procesar la solicitud.']);
         }
 
         // Buscar por campo 'Usuario' (username)

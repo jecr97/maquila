@@ -1,0 +1,88 @@
+Contexto de Base de Datos — Sistema de Maquila de Ropa
+
+Base de datos diseñada para controlar la producción de prendas en una maquila.
+
+Convenciones:
+
+* No se usan llaves foráneas.
+* Los campos relacionados usan formato IdNombreTabla.
+* Nomenclatura CamelCase.
+* Campos comunes: Id, Status, CreatedAt, UpdatedAt.
+
+Tablas principales:
+
+Usuario
+Usuarios del sistema. Registran y finalizan operaciones.
+
+TipoPrenda
+Catálogo de tipos de prenda.
+Ejemplo: Playera, Sudadera, Chamarra.
+
+TipoCorte
+Catálogo de tipos de corte.
+Ejemplo: MangaCorta, MangaLarga, CuelloV, CuelloRedondo, Capucha.
+
+PrecioPrendaCorte
+Precio de maquila por combinación de prenda y corte.
+Campos clave:
+IdTipoPrenda
+IdTipoCorte
+Precio
+
+Corte
+Registro principal de producción. Representa una orden de corte.
+Campos principales:
+Folio
+IdTipoPrenda
+IdTipoCorte
+CantidadPiezas
+PrecioUnitario
+IdUsuarioRegistro
+Status
+
+Estados del corte:
+Registrado
+Comenzado
+Finalizado
+Eliminado
+
+CorteDetalle
+Registra avances o movimientos durante el corte.
+Campos:
+IdCorte
+PiezasProcesadas
+Observaciones
+IdUsuario
+
+CorteFinalizado
+Registro final del corte terminado.
+Campos:
+IdCorte
+PiezasTotales
+PrecioUnitario
+MontoTotal
+IdUsuarioFinalizo
+FechaFinalizacion
+
+PiezasFaltantes
+Registro de piezas faltantes en producción.
+Campos:
+IdCorte
+IdTipoPrenda
+IdTipoCorte
+CantidadFaltante
+Motivo
+IdUsuarioRegistro
+
+Relaciones lógicas (sin FK):
+
+Corte.IdTipoPrenda → TipoPrenda.Id
+Corte.IdTipoCorte → TipoCorte.Id
+Corte.IdUsuarioRegistro → Usuario.Id
+
+CorteDetalle.IdCorte → Corte.Id
+CorteDetalle.IdUsuario → Usuario.Id
+
+CorteFinalizado.IdCorte → Corte.Id
+
+PiezasFaltantes.IdCorte → Corte.Id

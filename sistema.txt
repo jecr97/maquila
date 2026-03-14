@@ -1,0 +1,76 @@
+Contexto de Base de Datos — Sistema de Maquila de Ropa
+
+El sistema gestiona la producción de cortes en una maquila de ropa. Permite registrar tipos de prenda, tipos de corte, precios por combinación, órdenes de corte, avances de producción, faltantes y resultados finales.
+
+Reglas generales:
+
+* No se usan llaves foráneas.
+* Los campos relacionados comienzan con "Id".
+* Nomenclatura CamelCase.
+* Las tablas usan campos básicos: Id, Status, CreatedAt, UpdatedAt.
+
+Conceptos principales:
+
+TipoPrenda
+Catálogo de prendas que se producen.
+Ejemplo: Playera, Sudadera, Chamarra.
+
+TipoCorte
+Catálogo de estilos o cortes de la prenda.
+Ejemplo: MangaCorta, MangaLarga, CuelloV, CuelloRedondo, Capucha.
+
+PrecioPrendaCorte
+Define el precio de producción por cada combinación de TipoPrenda y TipoCorte.
+
+Usuario
+Usuarios que operan el sistema. Se registra quién crea o finaliza operaciones.
+
+Corte
+Registro principal de producción.
+Contiene:
+
+* tipo de prenda
+* tipo de corte
+* cantidad de piezas
+* precio unitario
+* usuario que registró
+* estado del proceso
+
+Estados posibles:
+Registrado
+Comenzado
+Finalizado
+Eliminado
+
+CorteDetalle
+Registra avances o movimientos durante el proceso de corte. Permite registrar piezas procesadas y observaciones.
+
+CorteFinalizado
+Registro final del corte terminado. Contiene:
+
+* piezas totales producidas
+* precio unitario
+* monto total
+* usuario que finalizó
+* fecha de finalización
+
+PiezasFaltantes
+Registra piezas faltantes cuando la producción no alcanza la cantidad solicitada.
+Contiene:
+
+* corte relacionado
+* tipo de prenda
+* tipo de corte
+* cantidad faltante
+* motivo
+* usuario que registró
+
+Flujo del sistema:
+
+1. Se registran catálogos: TipoPrenda y TipoCorte.
+2. Se configuran precios en PrecioPrendaCorte.
+3. Un usuario registra un Corte con cantidad de piezas.
+4. El corte cambia de estado durante producción.
+5. Se pueden registrar avances en CorteDetalle.
+6. Si faltan piezas, se registran en PiezasFaltantes.
+7. Al terminar, se registra el resultado en CorteFinalizado con el monto total.

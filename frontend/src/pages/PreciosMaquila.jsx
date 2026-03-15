@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  Grid, IconButton, Paper, Tooltip, Typography, Alert, CircularProgress, useTheme,
+  Box, Button, Chip, Card, CardContent, CardActions, Dialog, DialogActions, DialogContent, DialogTitle,
+  IconButton, Paper, Tooltip, Typography, Alert, Divider, Skeleton, useTheme,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faTags, faPlus, faPenToSquare, faToggleOn, faToggleOff, faTrash, faDollarSign,
+  faTags, faPlus, faPenToSquare, faToggleOn, faToggleOff, faDollarSign,
+  faExclamationCircle,
 } from '@fortawesome/free-solid-svg-icons';
+import { faUserSlash, faUserCheck } from '@fortawesome/free-solid-svg-icons';
 import CreateEditPrecioDialog from '../components/CreateEditPrecioDialog';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -17,11 +19,33 @@ const fmt = (v) => Number(v).toLocaleString('es-MX', { style: 'currency', curren
 export default function PreciosMaquila() {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+  const primaryMain = theme.palette.primary.main || '#1565c0';
+  const primaryDark = theme.palette.primary.dark || '#0F3460';
+  const muted = theme.palette.text.secondary;
+  const bg = theme.palette.background.default;
   const surface = theme.palette.background.paper;
-  const cardBgActive   = isDark ? '#0B1724' : surface;
-  const cardBgInactive = isDark ? 'rgba(30,30,40,0.5)' : 'rgba(240,240,245,0.7)';
-  const cardBorderActive   = isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)';
-  const cardBorderInactive = isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.05)';
+  const errorColor = theme.palette.error.main;
+  const cardBgActive = isDark ? '#0B1724' : surface;
+  const cardBgInactive = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(248, 250, 251, 0.7)';
+  const cardBorderActive = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.1)';
+  const cardBorderInactive = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(148, 163, 184, 0.2)';
+  const dividerColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.08)';
+
+  const CARD_GRADIENTS = [
+    ['#1565c0', '#42a5f5'],
+    ['#b45309', '#f59e0b'],
+    ['#2e7d32', '#4ade80'],
+    ['#6b21a8', '#9333ea'],
+    ['#0f172a', '#0ea5e9'],
+    ['#134e4a', '#14b8a6'],
+  ];
+
+  function cardGradient(seed = '') {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+    const [from, to] = CARD_GRADIENTS[Math.abs(hash) % CARD_GRADIENTS.length];
+    return `linear-gradient(135deg, ${from} 0%, ${to} 100%)`;
+  }
 
   const [rows, setRows]           = useState([]);
   const [prendas, setPrendas]     = useState([]);
@@ -35,7 +59,6 @@ export default function PreciosMaquila() {
   const [form, setForm]           = useState(EMPTY);
   const [formErr, setFormErr]     = useState({});
   const [dlgMsg, setDlgMsg]       = useState('');
-  const [confirmId, setConfirmId] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');
@@ -85,118 +108,108 @@ export default function PreciosMaquila() {
     loadData();
   };
 
-  const handleDelete = async (id) => {
-    await fetch(`${API_URL}/api/precios/${id}`, { method: 'DELETE' });
-    setConfirmId(null); loadData();
-  };
-
   const activos = rows.filter(r => r.Status === 'Activo').length;
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box sx={{ width: 48, height: 48, borderRadius: '12px', background: 'linear-gradient(135deg, #1565c0, #42a5f5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <FontAwesomeIcon icon={faTags} style={{ color: '#fff', fontSize: 20 }} />
-          </Box>
-          <Box>
-            <Typography variant="h5" fontWeight={700} color="primary.main">Precios de Maquila</Typography>
-            <Typography variant="body2" color="text.secondary">{activos} activo{activos !== 1 ? 's' : ''} · {rows.length} total</Typography>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, backgroundColor: bg, minHeight: '100vh' }}>
+      {/* Header premium */}
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', mb: 4, gap: 2 }}>
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+            <Box sx={{ width: 56, height: 56, borderRadius: '14px', background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(15, 52, 96, 0.25)' }}>
+              <FontAwesomeIcon icon={faTags} style={{ color: '#fff', fontSize: 24 }} />
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`, backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Precios de Maquila
+              </Typography>
+              <Typography variant="body2" sx={{ color: muted, fontWeight: 500 }}>
+                {activos} activo{activos !== 1 ? 's' : ''} · {rows.length} total
+              </Typography>
+            </Box>
           </Box>
         </Box>
         <Button variant="contained" startIcon={<FontAwesomeIcon icon={faPlus} />} onClick={openNew}
-          sx={{ background: 'linear-gradient(135deg, #1565c0, #42a5f5)', borderRadius: '10px', fontWeight: 600, px: 3, '&:hover': { background: 'linear-gradient(135deg, #0d47a1, #1565c0)' } }}>
-          Nuevo Precio
+          sx={{ background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`, borderRadius: '12px', fontWeight: 700, px: 3, py: 1.5, fontSize: '0.95rem', textTransform: 'capitalize', boxShadow: '0 8px 20px rgba(15, 52, 96, 0.3)', transition: 'all 0.3s ease', '&:hover': { background: `linear-gradient(135deg, #0a1f33 0%, ${primaryDark} 100%)`, transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(15, 52, 96, 0.4)' }, '&:active': { transform: 'translateY(0)' } }}>
+          + Nuevo Precio
         </Button>
       </Box>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: '12px', border: '1px solid', borderColor: 'rgba(244, 67, 54, 0.18)', backgroundColor: 'rgba(244, 67, 54, 0.06)', '& .MuiAlert-icon': { color: errorColor } }} onClose={() => setError('')}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><FontAwesomeIcon icon={faExclamationCircle} />{error}</Box>
+        </Alert>
+      )}
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress sx={{ color: 'primary.main' }} /></Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)', xl: 'repeat(4,1fr)' }, gap: 3 }}>
+          {[...Array(6)].map((_, i) => <Box key={i}><Skeleton variant="rounded" height={280} sx={{ borderRadius: '16px' }} /></Box>)}
+        </Box>
       ) : rows.length === 0 ? (
-        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '16px', p: 6, textAlign: 'center' }}>
-          <Box sx={{ width: 64, height: 64, borderRadius: '16px', background: 'linear-gradient(135deg, #1565c0, #42a5f5)', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2 }}>
-            <FontAwesomeIcon icon={faTags} style={{ color: '#fff', fontSize: 28 }} />
-          </Box>
-          <Typography fontWeight={700} mb={0.5}>Sin precios configurados</Typography>
-          <Typography variant="body2" color="text.secondary" mb={2}>Agrega combinaciones de prenda + corte con su precio.</Typography>
+        <Paper elevation={0} sx={{ textAlign: 'center', py: 10, backgroundColor: 'rgba(15, 52, 96, 0.04)', borderRadius: '16px', border: '2px dashed rgba(15, 52, 96, 0.1)' }}>
+          <Box sx={{ color: '#94a3b8', mb: 2 }}><FontAwesomeIcon icon={faTags} style={{ fontSize: 56, opacity: 0.3 }} /></Box>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: primaryDark, mb: 1 }}>Sin precios configurados</Typography>
+          <Typography variant="body2" sx={{ color: muted, mb: 3 }}>Agrega combinaciones de prenda + corte con su precio.</Typography>
           <Button variant="contained" startIcon={<FontAwesomeIcon icon={faPlus} />} onClick={openNew}
-            sx={{ background: 'linear-gradient(135deg, #1565c0, #42a5f5)', borderRadius: '8px', fontWeight: 600 }}>
-            Agregar primero
+            sx={{ background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`, borderRadius: '10px', fontWeight: 700, textTransform: 'capitalize' }}>
+            Agregar Primero
           </Button>
         </Paper>
       ) : (
-        <Grid container spacing={2.5}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)', xl: 'repeat(4,1fr)' }, gap: 3 }}>
           {rows.map((r) => {
             const isActive = r.Status === 'Activo';
+            const gradient = cardGradient(r.NombrePrenda || r.NombreCorte || '');
             return (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={r.Id}>
-                <Paper elevation={0} sx={{
-                  borderRadius: '16px',
-                  background: isActive ? cardBgActive : cardBgInactive,
-                  border: isActive ? cardBorderActive : cardBorderInactive,
-                  borderTop: `4px solid ${isActive ? '#1565c0' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)')}`,
-                  opacity: isActive ? 1 : 0.68,
-                  transition: 'all 0.25s ease',
-                  '&:hover': isActive ? { transform: 'translateY(-5px)', boxShadow: isDark ? '0 16px 40px rgba(0,0,0,0.45)' : '0 16px 40px rgba(21,101,192,0.13)' } : {},
-                  overflow: 'hidden',
-                }}>
-                  <Box sx={{ p: 2.5 }}>
-                    {/* Icon + Status */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                      <Box sx={{ width: 44, height: 44, borderRadius: '11px', background: isActive ? 'linear-gradient(135deg, #1565c0, #42a5f5)' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <FontAwesomeIcon icon={faDollarSign} style={{ color: isActive ? '#fff' : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)'), fontSize: 18 }} />
-                      </Box>
-                      <Chip label={r.Status} size="small" sx={{
-                        fontWeight: 600, fontSize: '0.68rem', height: 22,
-                        bgcolor: isActive ? (isDark ? 'rgba(46,125,50,0.2)' : 'rgba(46,125,50,0.1)') : (isDark ? 'rgba(100,100,100,0.15)' : 'rgba(0,0,0,0.05)'),
-                        color: isActive ? (isDark ? '#4ade80' : '#2e7d32') : (isDark ? 'rgba(255,255,255,0.45)' : '#9e9e9e'),
-                        border: `1px solid ${isActive ? (isDark ? 'rgba(74,222,128,0.25)' : 'rgba(46,125,50,0.25)') : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)')}`,
-                      }} />
-                    </Box>
-
-                    {/* Nombres */}
-                    <Typography fontWeight={700} fontSize="0.97rem" sx={{ color: isActive ? 'text.primary' : (isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.38)'), lineHeight: 1.3, mb: 0.4 }}>
-                      {r.NombrePrenda || '—'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: isActive ? 'text.secondary' : (isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)'), mb: 2 }}>
-                      {r.NombreCorte || '—'}
-                    </Typography>
-
-                    {/* Precio grande */}
-                    <Typography variant="h5" fontWeight={800} sx={{ color: isActive ? '#1565c0' : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)'), mb: 2 }}>
-                      {fmt(r.Precio)}
-                    </Typography>
-
-                    <Box sx={{ height: '1px', bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', mb: 1.5 }} />
-
-                    {/* Actions */}
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                      <Tooltip title="Editar">
-                        <IconButton size="small" onClick={() => openEdit(r)} sx={{ color: '#1565c0', bgcolor: 'rgba(21,101,192,0.07)', borderRadius: '8px', '&:hover': { bgcolor: 'rgba(21,101,192,0.15)' } }}>
-                          <FontAwesomeIcon icon={faPenToSquare} style={{ fontSize: 13 }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={isActive ? 'Desactivar' : 'Activar'}>
-                        <IconButton size="small" onClick={() => handleToggle(r.Id)}
-                          sx={{ color: isActive ? '#e65100' : '#2e7d32', bgcolor: isActive ? 'rgba(230,81,0,0.07)' : 'rgba(46,125,50,0.07)', borderRadius: '8px', '&:hover': { bgcolor: isActive ? 'rgba(230,81,0,0.15)' : 'rgba(46,125,50,0.15)' } }}>
-                          <FontAwesomeIcon icon={isActive ? faToggleOff : faToggleOn} style={{ fontSize: 13 }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Eliminar">
-                        <IconButton size="small" onClick={() => setConfirmId(r.Id)} sx={{ color: '#c62828', bgcolor: 'rgba(198,40,40,0.06)', borderRadius: '8px', '&:hover': { bgcolor: 'rgba(198,40,40,0.14)' } }}>
-                          <FontAwesomeIcon icon={faTrash} style={{ fontSize: 13 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
+              <Card key={r.Id} elevation={0} sx={{
+                borderRadius: '16px', border: '1px solid', borderColor: isActive ? cardBorderActive : cardBorderInactive,
+                backgroundColor: isActive ? cardBgActive : cardBgInactive,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', overflow: 'hidden', position: 'relative',
+                opacity: isActive ? 1 : 0.78,
+                '&:hover': { transform: isActive ? 'translateY(-8px)' : 'none', boxShadow: isActive ? (isDark ? '0 16px 48px rgba(0,0,0,0.6)' : '0 16px 48px rgba(15, 52, 96, 0.12)') : 'none' },
+              }}>
+                <Box sx={{ height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: gradient }}>
+                  <Box sx={{ position: 'absolute', right: -8, bottom: -8, opacity: 0.14, color: '#fff' }}>
+                    <FontAwesomeIcon icon={faDollarSign} style={{ fontSize: 82 }} />
                   </Box>
-                </Paper>
-              </Grid>
+                  <Box sx={{ width: 54, height: 54, borderRadius: '14px', bgcolor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', border: '1.5px solid rgba(255,255,255,0.35)', zIndex: 1 }}>
+                    <FontAwesomeIcon icon={faDollarSign} style={{ color: '#fff', fontSize: 20 }} />
+                  </Box>
+                </Box>
+                <CardContent sx={{ pb: 1, pt: 2 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, background: gradient, backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', lineHeight: 1.3, mb: 0.5 }}>
+                    {r.NombrePrenda || '—'}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: muted, textAlign: 'center', fontWeight: 500, fontSize: '0.85rem', mb: 1.2 }}>
+                    {r.NombreCorte || '—'}
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900, textAlign: 'center', lineHeight: 1, mb: 1.5, color: isActive ? primaryMain : (isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)') }}>
+                    {fmt(r.Precio)}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'center' }}>
+                    <Chip label={r.Status} size="small" icon={<Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: isActive ? '#10b981' : '#94a3b8', display: 'inline-block', mr: 0.5 }} />}
+                      sx={{ fontWeight: 700, fontSize: '0.75rem', bgcolor: isActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)', color: isActive ? '#10b981' : '#94a3b8', border: `1.5px solid ${isActive ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.25)'}` }} />
+                  </Box>
+                </CardContent>
+                <Divider sx={{ borderColor: dividerColor }} />
+                <CardActions sx={{ justifyContent: 'center', gap: 1, py: 1.5, px: 1 }}>
+                  <Tooltip title="Editar precio">
+                    <Button size="small" onClick={() => openEdit(r)} startIcon={<FontAwesomeIcon icon={faPenToSquare} style={{ fontSize: 12 }} />}
+                      sx={{ color: isActive ? primaryDark : muted, bgcolor: isActive ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.08)') : 'transparent', fontWeight: 700, fontSize: '0.8rem', textTransform: 'capitalize', borderRadius: '8px', flex: 1, transition: 'all 0.2s', '&:hover': isActive ? { bgcolor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15, 52, 96, 0.16)', transform: 'translateY(-2px)' } : {} }}>
+                      Editar
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title={isActive ? 'Desactivar' : 'Activar'}>
+                    <Button size="small" onClick={() => handleToggle(r.Id)} startIcon={<FontAwesomeIcon icon={isActive ? faToggleOff : faToggleOn} style={{ fontSize: 12 }} />}
+                      sx={{ color: isActive ? '#ef4444' : '#10b981', bgcolor: isActive ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)', fontWeight: 700, fontSize: '0.8rem', textTransform: 'capitalize', borderRadius: '8px', flex: 1, transition: 'all 0.2s', '&:hover': { bgcolor: isActive ? 'rgba(239, 68, 68, 0.16)' : 'rgba(16, 185, 129, 0.16)', transform: 'translateY(-2px)' } }}>
+                      {isActive ? 'Desactivar' : 'Activar'}
+                    </Button>
+                  </Tooltip>
+                </CardActions>
+              </Card>
             );
           })}
-        </Grid>
+        </Box>
       )}
 
       {/* Dialog crear/editar */}
@@ -214,15 +227,6 @@ export default function PreciosMaquila() {
         cortes={cortes}
       />
 
-      {/* Dialog confirmar eliminación */}
-      <Dialog open={!!confirmId} onClose={() => setConfirmId(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '14px' } }}>
-        <DialogTitle sx={{ fontWeight: 700, color: '#c62828' }}>¿Eliminar precio?</DialogTitle>
-        <DialogContent><Typography color="text.secondary">Esta acción no se puede deshacer.</Typography></DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button onClick={() => setConfirmId(null)} variant="outlined" sx={{ borderRadius: '8px', fontWeight: 600 }}>Cancelar</Button>
-          <Button onClick={() => handleDelete(confirmId)} variant="contained" color="error" sx={{ borderRadius: '8px', fontWeight: 600 }}>Eliminar</Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

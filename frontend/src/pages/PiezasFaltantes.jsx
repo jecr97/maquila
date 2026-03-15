@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-    FormControl, FormControlLabel, Grid, IconButton, InputLabel, MenuItem, Paper, Select,
-    TextField, Tooltip, Typography, Alert, CircularProgress, useTheme,
+    Box, Button, Checkbox, Chip, Card, CardContent, CardActions, Dialog, DialogActions,
+    DialogContent, DialogTitle, Divider, FormControl, FormControlLabel, IconButton,
+    InputLabel, MenuItem, Paper, Select, Skeleton, TextField, Tooltip, Typography, Alert,
+    useTheme,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faTriangleExclamation, faPlus, faTrash, faTimes, faSave, faSpinner,
+    faExclamationCircle,
 } from '@fortawesome/free-solid-svg-icons';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -14,9 +16,33 @@ const API_URL = import.meta.env.VITE_API_URL;
 export default function PiezasFaltantes() {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const primaryMain = theme.palette.primary.main || '#1565c0';
+    const primaryDark = theme.palette.primary.dark || '#0F3460';
+    const muted = theme.palette.text.secondary;
+    const bg = theme.palette.background.default;
     const surface = theme.palette.background.paper;
+    const errorColor = theme.palette.error.main;
     const cardBg = isDark ? '#0B1724' : surface;
-    const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    const cardBorderColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.1)';
+    const dividerColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.08)';
+    const dangerMain = '#c62828';
+    const dangerDark = '#b71c1c';
+
+    const CARD_GRADIENTS = [
+        ['#1565c0', '#42a5f5'],
+        ['#b45309', '#f59e0b'],
+        ['#2e7d32', '#4ade80'],
+        ['#6b21a8', '#9333ea'],
+        ['#0f172a', '#0ea5e9'],
+        ['#134e4a', '#14b8a6'],
+    ];
+
+    function cardGradient(seed = '') {
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+        const [from, to] = CARD_GRADIENTS[Math.abs(hash) % CARD_GRADIENTS.length];
+        return `linear-gradient(135deg, ${from} 0%, ${to} 100%)`;
+    }
 
     const [rows, setRows] = useState([]);
     const [cortesActivos, setCortesActivos] = useState([]);
@@ -115,124 +141,138 @@ export default function PiezasFaltantes() {
     };
 
     return (
-        <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, backgroundColor: bg, minHeight: '100vh' }}>
+            {/* Header premium */}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', mb: 4, gap: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Box sx={{ width: 48, height: 48, borderRadius: '12px', background: 'linear-gradient(135deg, #b91c1c, #ef4444)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <FontAwesomeIcon icon={faTriangleExclamation} style={{ color: '#fff', fontSize: 20 }} />
+                    <Box sx={{ width: 56, height: 56, borderRadius: '14px', background: `linear-gradient(135deg, ${dangerDark} 0%, #ef4444 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(198, 40, 40, 0.25)' }}>
+                        <FontAwesomeIcon icon={faTriangleExclamation} style={{ color: '#fff', fontSize: 24 }} />
                     </Box>
                     <Box>
-                        <Typography variant="h5" fontWeight={700} color="primary.main">Piezas Faltantes</Typography>
-                        <Typography variant="body2" color="text.secondary">{rows.length} registro{rows.length !== 1 ? 's' : ''}</Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 800, background: `linear-gradient(135deg, ${dangerDark} 0%, #ef4444 100%)`, backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            Piezas Faltantes
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: muted, fontWeight: 500 }}>
+                            {rows.length} registro{rows.length !== 1 ? 's' : ''} encontrado{rows.length !== 1 ? 's' : ''}
+                        </Typography>
                     </Box>
                 </Box>
                 <Button variant="contained" startIcon={<FontAwesomeIcon icon={faPlus} />} onClick={openNew}
-                    sx={{ background: 'linear-gradient(135deg, #1565c0, #42a5f5)', borderRadius: '10px', fontWeight: 600, px: 3, '&:hover': { background: 'linear-gradient(135deg, #0d47a1, #1565c0)' } }}>
+                    sx={{ background: `linear-gradient(135deg, ${primaryDark}, ${primaryMain})`, borderRadius: '12px', fontWeight: 700, px: 3, py: 1.2, textTransform: 'none', boxShadow: '0 4px 14px rgba(15, 52, 96, 0.25)', '&:hover': { background: `linear-gradient(135deg, #0d47a1, ${primaryDark})`, boxShadow: '0 6px 20px rgba(15, 52, 96, 0.35)' } }}>
                     Registrar Faltantes
                 </Button>
             </Box>
 
-            <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', mb: 2, p: 2 }}>
+            {/* Filters */}
+            <Paper elevation={0} sx={{ border: '1px solid', borderColor: dividerColor, borderRadius: '14px', mb: 3, p: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(15, 52, 96, 0.02)' }}>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
                     <TextField label="Desde" type="date" size="small" value={desde}
                         onChange={e => { setDesde(e.target.value); setDateErr(''); if (hasta && e.target.value > hasta) setHasta(''); }}
-                        InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
+                        InputLabelProps={{ shrink: true }} sx={{ width: 170, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
                     <TextField label="Hasta" type="date" size="small" value={hasta}
                         onChange={e => handleHastaChange(e.target.value)}
-                        InputLabelProps={{ shrink: true }} sx={{ width: 170 }}
+                        InputLabelProps={{ shrink: true }} sx={{ width: 170, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
                         inputProps={{ min: desde || undefined }} />
-                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                    <FormControl size="small" sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}>
                         <InputLabel>Proveedor</InputLabel>
                         <Select label="Proveedor" value={idProveedor} onChange={e => setIdProveedor(e.target.value)}>
                             <MenuItem value="">Todos</MenuItem>
                             {proveedores.map(p => <MenuItem key={p.Id} value={p.Id}>{p.Nombre}</MenuItem>)}
                         </Select>
                     </FormControl>
-                    {(desde || hasta || idProveedor) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setIdProveedor(''); setDateErr(''); }} sx={{ fontWeight: 600 }}>Limpiar</Button>}
+                    {(desde || hasta || idProveedor) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setIdProveedor(''); setDateErr(''); }} sx={{ fontWeight: 700, color: primaryDark, borderRadius: '8px' }}>Limpiar</Button>}
                 </Box>
-                {dateErr && <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2, py: 0.5 }}>{dateErr}</Alert>}
+                {dateErr && <Alert severity="warning" sx={{ mt: 1.5, borderRadius: '10px', py: 0.5 }}>{dateErr}</Alert>}
             </Paper>
 
-            {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+            {error && (
+                <Alert severity="error" sx={{ mb: 3, borderRadius: '12px', border: '1px solid', borderColor: 'rgba(244, 67, 54, 0.18)', backgroundColor: 'rgba(244, 67, 54, 0.06)', '& .MuiAlert-icon': { color: errorColor } }} onClose={() => setError('')}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><FontAwesomeIcon icon={faExclamationCircle} />{error}</Box>
+                </Alert>
+            )}
 
             {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress sx={{ color: 'primary.main' }} /></Box>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)', xl: 'repeat(4,1fr)' }, gap: 3 }}>
+                    {[...Array(8)].map((_, i) => <Box key={i}><Skeleton variant="rounded" height={280} sx={{ borderRadius: '16px' }} /></Box>)}
+                </Box>
             ) : rows.length === 0 ? (
-                <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '16px', p: 6, textAlign: 'center' }}>
-                    <Box sx={{ width: 60, height: 60, borderRadius: '14px', background: 'linear-gradient(135deg, #b91c1c, #ef4444)', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2 }}>
-                        <FontAwesomeIcon icon={faTriangleExclamation} style={{ color: '#fff', fontSize: 24 }} />
-                    </Box>
-                    <Typography fontWeight={700} mb={0.5}>Sin piezas faltantes</Typography>
-                    <Typography variant="body2" color="text.secondary">No se han registrado faltantes en el periodo seleccionado.</Typography>
+                <Paper elevation={0} sx={{ textAlign: 'center', py: 10, backgroundColor: 'rgba(198, 40, 40, 0.04)', borderRadius: '16px', border: '2px dashed rgba(198, 40, 40, 0.15)' }}>
+                    <Box sx={{ color: '#ef9a9a', mb: 2 }}><FontAwesomeIcon icon={faTriangleExclamation} style={{ fontSize: 56, opacity: 0.3 }} /></Box>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: dangerMain, mb: 1 }}>Sin piezas faltantes</Typography>
+                    <Typography variant="body2" sx={{ color: muted }}>No se han registrado faltantes en el periodo seleccionado.</Typography>
                 </Paper>
             ) : (
-                <Grid container spacing={2.5}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)', xl: 'repeat(4,1fr)' }, gap: 3 }}>
                     {rows.map((r) => (
-                        <Grid item xs={12} sm={6} md={4} lg={3} key={r.Id}>
-                            <Paper elevation={0} sx={{
-                                borderRadius: '16px',
-                                background: cardBg,
-                                border: `1px solid ${cardBorder}`,
-                                borderTop: '4px solid #c62828',
-                                transition: 'all 0.25s ease',
-                                '&:hover': { transform: 'translateY(-4px)', boxShadow: isDark ? '0 12px 32px rgba(0,0,0,0.45)' : '0 12px 32px rgba(198,40,40,0.1)' },
-                                overflow: 'hidden',
-                            }}>
-                                <Box sx={{ p: 2.5 }}>
-                                    {/* Folio + Descuento chip */}
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                                        <Typography fontWeight={700} fontFamily="monospace" fontSize="0.82rem"
-                                            sx={{ color: '#c62828', bgcolor: isDark ? 'rgba(198,40,40,0.15)' : 'rgba(198,40,40,0.08)', px: 1.2, py: 0.4, borderRadius: '6px', border: '1px solid rgba(198,40,40,0.3)' }}>
-                                            {r.Folio || '—'}
-                                        </Typography>
-                                        <Chip label={r.AplicaDescuento == 1 ? 'Con desc.' : 'Sin desc.'} size="small"
-                                            sx={{ fontWeight: 600, fontSize: '0.68rem', height: 22,
-                                                bgcolor: r.AplicaDescuento == 1 ? (isDark ? 'rgba(21,101,192,0.2)' : 'rgba(21,101,192,0.1)') : (isDark ? 'rgba(100,100,100,0.2)' : 'rgba(0,0,0,0.05)'),
-                                                color: r.AplicaDescuento == 1 ? (isDark ? '#42a5f5' : '#1565c0') : (isDark ? 'rgba(255,255,255,0.5)' : '#757575'),
-                                                border: `1px solid ${r.AplicaDescuento == 1 ? 'rgba(21,101,192,0.3)' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)')}` }} />
-                                    </Box>
+                        <Card key={r.Id} elevation={0} sx={{
+                            borderRadius: '16px', border: '1px solid', borderColor: cardBorderColor,
+                            backgroundColor: cardBg, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', overflow: 'hidden', position: 'relative',
+                            '&:hover': { transform: 'translateY(-8px)', boxShadow: isDark ? '0 16px 48px rgba(0,0,0,0.6)' : '0 16px 48px rgba(198, 40, 40, 0.12)' },
+                        }}>
+                            <Box sx={{ height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: cardGradient(r.Folio || r.NombrePrenda || '') }}>
+                                <Box sx={{ position: 'absolute', right: -8, bottom: -8, opacity: 0.14, color: '#fff' }}>
+                                    <FontAwesomeIcon icon={faTriangleExclamation} style={{ fontSize: 82 }} />
+                                </Box>
+                                <Box sx={{ width: 54, height: 54, borderRadius: '14px', bgcolor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', border: '1.5px solid rgba(255,255,255,0.35)', zIndex: 1 }}>
+                                    <FontAwesomeIcon icon={faTriangleExclamation} style={{ color: '#fff', fontSize: 26 }} />
+                                </Box>
+                            </Box>
 
-                                    {/* Prenda + Corte */}
-                                    <Typography fontWeight={700} fontSize="0.95rem" sx={{ lineHeight: 1.3, mb: 0.3 }}>{r.NombrePrenda || '—'}</Typography>
-                                    <Typography variant="body2" color="text.secondary" mb={r.NombreProveedor ? 0.4 : 0.8}>{r.NombreCorte || '—'}</Typography>
-                                    {r.NombreProveedor && (
-                                        <Typography variant="caption" color="text.secondary" display="block" mb={0.8} sx={{ opacity: 0.7 }}>{r.NombreProveedor}</Typography>
-                                    )}
-
-                                    {/* Cantidad faltante (destacada) */}
-                                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.8, mb: 1 }}>
-                                        <Typography variant="h4" fontWeight={800} sx={{ color: '#c62828', lineHeight: 1 }}>{r.CantidadFaltante}</Typography>
-                                        <Typography variant="body2" color="text.secondary" fontWeight={500}>piezas faltantes</Typography>
-                                    </Box>
-
-                                    {/* Motivo */}
-                                    {r.Motivo && (
-                                        <Typography variant="caption" color="text.secondary" display="block" mb={1}
-                                            sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                                            {r.Motivo}
-                                        </Typography>
-                                    )}
-
-                                    {/* Fecha */}
-                                    <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
-                                        {r.CreatedAt ? new Date(r.CreatedAt).toLocaleDateString('es-MX') : '—'}
+                            <CardContent sx={{ pb: 1, pt: 2 }}>
+                                {/* Folio + Descuento chip */}
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                                    <Typography fontWeight={800} fontFamily="monospace" fontSize="0.85rem"
+                                        sx={{ color: dangerMain, bgcolor: isDark ? 'rgba(198,40,40,0.15)' : 'rgba(198,40,40,0.08)', px: 1.2, py: 0.4, borderRadius: '8px', border: '1px solid rgba(198,40,40,0.3)' }}>
+                                        {r.Folio || '—'}
                                     </Typography>
+                                    <Chip label={r.AplicaDescuento == 1 ? 'Con desc.' : 'Sin desc.'} size="small"
+                                        icon={<Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: r.AplicaDescuento == 1 ? primaryMain : '#757575', display: 'inline-block', mr: 0.5 }} />}
+                                        sx={{ fontWeight: 700, fontSize: '0.72rem',
+                                            bgcolor: r.AplicaDescuento == 1 ? (isDark ? 'rgba(21,101,192,0.2)' : 'rgba(21,101,192,0.1)') : (isDark ? 'rgba(100,100,100,0.2)' : 'rgba(0,0,0,0.05)'),
+                                            color: r.AplicaDescuento == 1 ? (isDark ? '#42a5f5' : primaryMain) : (isDark ? 'rgba(255,255,255,0.5)' : '#757575'),
+                                            border: `1.5px solid ${r.AplicaDescuento == 1 ? 'rgba(21,101,192,0.3)' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)')}` }} />
+                                </Box>
 
-                                    <Box sx={{ height: '1px', bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', mb: 1.5 }} />
+                                {/* Prenda + Corte */}
+                                <Typography variant="h6" sx={{ fontWeight: 700, background: cardGradient(r.Folio || r.NombrePrenda || ''), backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1.3, mb: 0.3, fontSize: '1rem' }}>{r.NombrePrenda || '—'}</Typography>
+                                <Typography variant="body2" sx={{ color: muted, fontWeight: 500, fontSize: '0.85rem', mb: r.NombreProveedor ? 0.4 : 1 }}>{r.NombreCorte || '—'}</Typography>
+                                {r.NombreProveedor && (
+                                    <Typography variant="caption" sx={{ color: muted, display: 'block', mb: 1, opacity: 0.7 }}>{r.NombreProveedor}</Typography>
+                                )}
 
-                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                        <Tooltip title="Eliminar">
-                                            <IconButton size="small" onClick={() => { setConfirmId(r.Id); setConfirmCorteId(r.IdCorte); }}
-                                                sx={{ color: '#c62828', bgcolor: 'rgba(198,40,40,0.06)', borderRadius: '8px', '&:hover': { bgcolor: 'rgba(198,40,40,0.14)' } }}>
-                                                <FontAwesomeIcon icon={faTrash} style={{ fontSize: 13 }} />
-                                            </IconButton>
-                                        </Tooltip>
+                                {/* Cantidad faltante (destacada) */}
+                                <Box sx={{ bgcolor: isDark ? 'rgba(198,40,40,0.08)' : 'rgba(198,40,40,0.04)', borderRadius: '10px', p: 1.2, mb: 1.2 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.8 }}>
+                                        <Typography variant="h4" fontWeight={800} sx={{ color: dangerMain, lineHeight: 1 }}>{r.CantidadFaltante}</Typography>
+                                        <Typography variant="body2" sx={{ color: muted, fontWeight: 500 }}>piezas faltantes</Typography>
                                     </Box>
                                 </Box>
-                            </Paper>
-                        </Grid>
+
+                                {/* Motivo */}
+                                {r.Motivo && (
+                                    <Typography variant="caption" sx={{ color: muted, display: 'block', mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                                        {r.Motivo}
+                                    </Typography>
+                                )}
+
+                                {/* Fecha */}
+                                <Typography variant="caption" sx={{ color: muted, opacity: 0.7 }}>
+                                    {r.CreatedAt ? new Date(r.CreatedAt).toLocaleDateString('es-MX') : '—'}
+                                </Typography>
+                            </CardContent>
+                            <Divider sx={{ borderColor: dividerColor }} />
+                            <CardActions sx={{ justifyContent: 'center', py: 1.5, px: 1 }}>
+                                <Tooltip title="Eliminar registro">
+                                    <Button size="small" onClick={() => { setConfirmId(r.Id); setConfirmCorteId(r.IdCorte); }}
+                                        startIcon={<FontAwesomeIcon icon={faTrash} style={{ fontSize: 11 }} />}
+                                        sx={{ color: dangerMain, bgcolor: 'rgba(198,40,40,0.06)', fontWeight: 700, fontSize: '0.8rem', textTransform: 'capitalize', borderRadius: '8px', flex: 1, transition: 'all 0.2s', '&:hover': { bgcolor: 'rgba(198,40,40,0.14)', transform: 'translateY(-2px)' } }}>
+                                        Eliminar
+                                    </Button>
+                                </Tooltip>
+                            </CardActions>
+                        </Card>
                     ))}
-                </Grid>
+                </Box>
             )}
 
             {/* Dialog Registrar */}

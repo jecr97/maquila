@@ -80,6 +80,20 @@ class ProveedorController extends BaseController
         return $this->response->setJSON(['success' => true, 'message' => 'Proveedor eliminado.']);
     }
 
+    // PATCH /api/proveedores/:id/status
+    public function toggleStatus(int $id)
+    {
+        $prov = $this->model->find($id);
+        if (!$prov) {
+            return $this->response->setStatusCode(404)->setJSON(['success' => false, 'message' => 'Proveedor no encontrado.']);
+        }
+
+        $nuevo = ($prov['Status'] === 'Activo') ? 'Inactivo' : 'Activo';
+        $this->model->update($id, ['Status' => $nuevo]);
+
+        return $this->response->setJSON(['success' => true, 'message' => "Proveedor {$nuevo}.", 'status' => $nuevo]);
+    }
+
     // POST /api/proveedores/reiniciar
     public function reiniciar()
     {

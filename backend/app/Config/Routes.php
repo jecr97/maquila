@@ -77,5 +77,6 @@ $routes->group('api', ['namespace' => 'App\Controllers'], function ($routes) {
     $routes->post('proveedores/reiniciar', 'ProveedorController::reiniciar');
     $routes->post('proveedores', 'ProveedorController::store');
     $routes->put('proveedores/(:num)', 'ProveedorController::update/$1');
+    $routes->patch('proveedores/(:num)/status', 'ProveedorController::toggleStatus/$1');
     $routes->delete('proveedores/(:num)', 'ProveedorController::destroy/$1');
 });

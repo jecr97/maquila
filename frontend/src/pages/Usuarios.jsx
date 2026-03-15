@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
-  Grid,
   Card,
   CardContent,
   CardActions,
@@ -20,8 +19,12 @@ import {
   Alert,
   Tooltip,
   Divider,
+  Skeleton,
+  Paper,
+  LinearProgress,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useTheme } from '@mui/material/styles';
 import {
   faUsers,
   faUserEdit,
@@ -33,6 +36,8 @@ import {
   faTimes,
   faSave,
   faSpinner,
+  faCheckCircle,
+  faExclamationCircle,
 } from '@fortawesome/free-solid-svg-icons';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -49,7 +54,15 @@ function getInitials(name = '') {
 }
 
 function avatarColor(name = '') {
-  const colors = ['#1565c0', '#1a68a6', '#2e7d32', '#c62828', '#6a1b9a', '#00695c', '#e65100'];
+  const colors = [
+    '#0F3460', // Azul oscuro profesional
+    '#1565c0', // Azul moderno
+    '#00897b', // Verde azulado
+    '#00695c', // Verde oscuro
+    '#455a64', // Gris azulado
+    '#1a237e', // Azul profundo
+    '#37474f', // Gris profesional
+  ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
@@ -58,10 +71,27 @@ function avatarColor(name = '') {
 // ---------------------------------------------------------------
 
 export default function Usuarios() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const primaryMain = theme.palette.primary.main || '#1565c0';
+  const primaryDark = theme.palette.primary.dark || '#0F3460';
+  const primaryContrast = theme.palette.getContrastText(primaryMain);
+  const muted = theme.palette.text.secondary;
+  const bg = theme.palette.background.default;
+  const surface = theme.palette.background.paper;
+  const successColor = theme.palette.success.main;
+  const errorColor = theme.palette.error.main;
+  // Card colors tuned for dark/light modes
+  const cardBgActive = isDark ? '#0B1724' : surface;
+  const cardBgInactive = isDark ? 'rgba(255,255,255,0.02)' : 'rgba(248, 250, 251, 0.7)';
+  const cardBorderActive = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.1)';
+  const cardBorderInactive = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(148, 163, 184, 0.2)';
+  const dividerColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.08)';
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Dialog estado
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -70,6 +100,7 @@ export default function Usuarios() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
   const [dialogMsg, setDialogMsg] = useState('');
+  const [toggleLoading, setToggleLoading] = useState(null);
 
   // ---- Fetch ----
   const fetchUsuarios = useCallback(async () => {
@@ -130,6 +161,7 @@ export default function Usuarios() {
   const handleSave = async () => {
     if (!validate()) return;
     setSaving(true);
+    setSaveSuccess(false);
     setDialogMsg('');
     try {
       const body = { Nombre: form.Nombre, Usuario: form.Usuario, Rol: form.Rol };
@@ -145,8 +177,12 @@ export default function Usuarios() {
       });
       const json = await res.json();
       if (json.success) {
-        closeDialog();
-        fetchUsuarios();
+        setSaveSuccess(true);
+        setTimeout(() => {
+          closeDialog();
+          fetchUsuarios();
+          setSaveSuccess(false);
+        }, 1200);
       } else {
         const msg = json.errors
           ? Object.values(json.errors).join(' ')
@@ -161,54 +197,105 @@ export default function Usuarios() {
 
   // ---- Toggle status ----
   const handleToggleStatus = async (u) => {
+    setToggleLoading(u.Id);
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/${u.id}/status`, { method: 'PATCH' });
+      const res = await fetch(`${API_URL}/api/usuarios/${u.Id}/status`, { method: 'PATCH' });
       const json = await res.json();
-      if (json.success) fetchUsuarios();
+      if (json.success) {
+        setTimeout(() => {
+          fetchUsuarios();
+          setToggleLoading(null);
+        }, 600);
+      } else {
+        setError('No se pudo cambiar el estado.');
+        setToggleLoading(null);
+      }
     } catch {
       setError('No se pudo cambiar el estado.');
+      setToggleLoading(null);
     }
   };
+
+  // ---------------------------------------------------------------
+  // RENDER LOADING
+  // ---------------------------------------------------------------
+  if (loading) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+        {/* Header skeleton */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Skeleton variant="rounded" width={56} height={56} />
+            <Box>
+              <Skeleton variant="text" width={200} height={32} />
+              <Skeleton variant="text" width={150} height={20} sx={{ mt: 1 }} />
+            </Box>
+          </Box>
+          <Skeleton variant="rounded" width={140} height={44} />
+        </Box>
+
+        {/* Cards skeleton */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)', xl: 'repeat(4,1fr)' }, gap: 3 }}>
+          {[...Array(6)].map((_, i) => (
+            <Box key={i}><Skeleton variant="rounded" height={400} /></Box>
+          ))}
+        </Box>
+      </Box>
+    );
+  }
 
   // ---------------------------------------------------------------
   // RENDER
   // ---------------------------------------------------------------
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-        <CircularProgress size={48} sx={{ color: 'primary.main' }} />
-      </Box>
-    );
-  }
-
   const activos = usuarios.filter((u) => u.Status === 'Activo').length;
 
   return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #1565c0, #42a5f5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <FontAwesomeIcon icon={faUsers} style={{ color: '#fff', fontSize: 20 }} />
-          </Box>
-          <Box>
-            <Typography variant="h5" fontWeight={700} color="primary.main">
-              Usuarios
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {activos} activo{activos !== 1 ? 's' : ''} · {usuarios.length} total
-            </Typography>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, backgroundColor: bg, minHeight: '100vh' }}>
+      {/* Header premium */}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          justifyContent: 'space-between',
+          mb: 4,
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+            <Box
+              sx={{
+                width: 56,
+                height: 56,
+                borderRadius: '14px',
+                background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(15, 52, 96, 0.25)',
+              }}
+            >
+              <FontAwesomeIcon icon={faUsers} style={{ color: '#fff', fontSize: 24 }} />
+            </Box>
+            <Box>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 800,
+                  background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`,
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                Usuarios
+              </Typography>
+              <Typography variant="body2" sx={{ color: muted, fontWeight: 500 }}>
+                {activos} activo{activos !== 1 ? 's' : ''} · {usuarios.length} total
+              </Typography>
+            </Box>
           </Box>
         </Box>
         <Button
@@ -216,186 +303,406 @@ export default function Usuarios() {
           startIcon={<FontAwesomeIcon icon={faUserPlus} />}
           onClick={openNew}
           sx={{
-            background: 'linear-gradient(135deg, #1565c0, #42a5f5)',
-            borderRadius: '10px',
-            fontWeight: 600,
+            background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`,
+            borderRadius: '12px',
+            fontWeight: 700,
             px: 3,
-            '&:hover': { background: 'linear-gradient(135deg, #0d47a1, #1565c0)' },
+            py: 1.5,
+            fontSize: '0.95rem',
+            textTransform: 'capitalize',
+            boxShadow: '0 8px 20px rgba(15, 52, 96, 0.3)',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              background: 'linear-gradient(135deg, #0a1f33 0%, #0F3460 100%)',
+              transform: 'translateY(-2px)',
+              boxShadow: '0 12px 28px rgba(15, 52, 96, 0.4)',
+            },
+            '&:active': { transform: 'translateY(0)' },
           }}
         >
-          Nuevo Usuario
+          + Nuevo Usuario
         </Button>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
-          {error}
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            borderRadius: '12px',
+            border: '1px solid',
+            borderColor: 'rgba(244, 67, 54, 0.2)',
+            backgroundColor: 'rgba(244, 67, 54, 0.08)',
+            '& .MuiAlert-icon': { color: errorColor },
+          }}
+          onClose={() => setError('')}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <FontAwesomeIcon icon={faExclamationCircle} />
+            {error}
+          </Box>
         </Alert>
       )}
 
       {/* Cards grid */}
-      <Grid container spacing={3}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)', xl: 'repeat(4,1fr)' }, gap: 3 }}>
         {usuarios.map((u) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={u.id}>
             <Card
               elevation={0}
               sx={{
-                border: '1px solid',
-                borderColor: u.Status === 'Activo' ? 'rgba(21,101,192,0.12)' : 'rgba(0,0,0,0.08)',
                 borderRadius: '16px',
-                transition: 'all 0.2s',
-                opacity: u.Status === 'Inactivo' ? 0.65 : 1,
-                '&:hover': { boxShadow: '0 8px 28px rgba(21,101,192,0.15)', transform: 'translateY(-2px)' },
+                border: '1px solid',
+                borderColor: u.Status === 'Activo' ? cardBorderActive : cardBorderInactive,
+                backgroundColor: u.Status === 'Activo' ? cardBgActive : cardBgInactive,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                opacity: toggleLoading === u.Id ? 0.6 : u.Status === 'Inactivo' ? 0.7 : 1,
+                overflow: 'hidden',
+                position: 'relative',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '4px',
+                  background: u.Status === 'Activo' 
+                    ? `linear-gradient(90deg, ${primaryDark}, ${primaryMain})` 
+                    : 'rgba(148, 163, 184, 0.3)',
+                },
+                '&:hover': {
+                  transform: u.Status === 'Activo' ? 'translateY(-8px)' : 'none',
+                  boxShadow: u.Status === 'Activo' ? (isDark ? '0 16px 48px rgba(0,0,0,0.6)' : '0 16px 48px rgba(15, 52, 96, 0.12)') : 'none',
+                  borderColor: u.Status === 'Activo' ? cardBorderActive : cardBorderInactive,
+                },
               }}
             >
-              <CardContent sx={{ pb: 1 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 1, pb: 1 }}>
-                  <Avatar
+              {toggleLoading === u.Id && (
+                <LinearProgress
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '3px',
+                    background: `linear-gradient(90deg, ${primaryDark}, ${primaryMain})`,
+                    zIndex: 10,
+                  }}
+                />
+              )}
+
+              <CardContent sx={{ pb: 2, pt: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+                  <Box sx={{ position: 'relative', mb: 1.5 }}>
+                    <Avatar
+                      sx={{
+                        width: 72,
+                        height: 72,
+                        fontSize: 28,
+                        fontWeight: 700,
+                        bgcolor: avatarColor(u.Nombre),
+                        boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.55)' : '0 8px 24px rgba(15, 52, 96, 0.25)',
+                        border: '3px solid #fff',
+                      }}
+                    >
+                      {getInitials(u.Nombre)}
+                    </Avatar>
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        right: 0,
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        backgroundColor: u.Status === 'Activo' ? '#10b981' : '#94a3b8',
+                        border: '2px solid #fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: '#fff',
+                        }}
+                      />
+                    </Box>
+                  </Box>
+
+                  <Typography
+                    variant="h6"
                     sx={{
-                      width: 68,
-                      height: 68,
-                      fontSize: 22,
                       fontWeight: 700,
-                      bgcolor: avatarColor(u.Nombre),
-                      mb: 1.5,
-                      boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+                      color: primaryDark,
+                      textAlign: 'center',
+                      lineHeight: 1.3,
+                      mb: 0.5,
                     }}
                   >
-                    {getInitials(u.Nombre)}
-                  </Avatar>
-                  <Typography variant="subtitle1" fontWeight={700} color="primary.main" textAlign="center" lineHeight={1.2}>
                     {u.Nombre}
                   </Typography>
                   <Typography
                     variant="body2"
-                    color="text.secondary"
-                    textAlign="center"
-                    sx={{ mt: 0.4, fontSize: '0.78rem' }}
+                    sx={{
+                      color: muted,
+                      textAlign: 'center',
+                      fontWeight: 500,
+                      fontSize: '0.85rem',
+                      marginBottom: 1,
+                    }}
                   >
                     @{u.Usuario}
                   </Typography>
-                  <Chip
-                    label={u.Rol || 'Operador'}
-                    size="small"
-                    sx={{
-                      mt: 0.6,
-                      fontWeight: 600,
-                      fontSize: '0.7rem',
-                      bgcolor: u.Rol === 'Admin' ? 'rgba(21,101,192,0.1)' : 'rgba(0,0,0,0.05)',
-                      color: u.Rol === 'Admin' ? '#1565c0' : '#555',
-                      border: `1px solid ${u.Rol === 'Admin' ? 'rgba(21,101,192,0.25)' : 'rgba(0,0,0,0.1)'}`,
-                    }}
-                  />
-                  <Chip
-                    label={u.Status}
-                    size="small"
-                    sx={{
-                      mt: 0.8,
-                      fontWeight: 600,
-                      fontSize: '0.72rem',
-                      bgcolor: u.Status === 'Activo' ? 'rgba(46,125,50,0.1)' : 'rgba(0,0,0,0.06)',
-                      color: u.Status === 'Activo' ? '#2e7d32' : '#616161',
-                      border: `1px solid ${u.Status === 'Activo' ? 'rgba(46,125,50,0.3)' : 'rgba(0,0,0,0.12)'}`,
-                    }}
-                  />
+
+                  <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <Chip
+                      label={u.Rol || 'Operador'}
+                      size="small"
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                        bgcolor: u.Rol === 'Admin' ? primaryMain : 'rgba(100, 116, 139, 0.08)',
+                        color: u.Rol === 'Admin' ? primaryContrast : muted,
+                        border: `1.5px solid ${u.Rol === 'Admin' ? primaryDark : 'rgba(100, 116, 139, 0.2)'}`,
+                      }}
+                    />
+                    <Chip
+                      label={u.Status}
+                      size="small"
+                      icon={
+                        <Box
+                          component="span"
+                          sx={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            backgroundColor: u.Status === 'Activo' ? '#10b981' : '#94a3b8',
+                            display: 'inline-block',
+                            mr: 0.5,
+                          }}
+                        />
+                      }
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                        bgcolor: u.Status === 'Activo' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                        color: u.Status === 'Activo' ? '#10b981' : '#94a3b8',
+                        border: `1.5px solid ${u.Status === 'Activo' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.25)'}`,
+                      }}
+                    />
+                  </Box>
                 </Box>
               </CardContent>
-              <Divider sx={{ borderColor: 'rgba(0,0,0,0.06)' }} />
-              <CardActions sx={{ justifyContent: 'center', gap: 0.5, py: 1.2 }}>
+
+              <Divider sx={{ borderColor: dividerColor }} />
+
+              <CardActions sx={{ justifyContent: 'center', gap: 1, py: 1.5, px: 1 }}>
                 <Tooltip title="Editar usuario">
-                  <IconButton
+                  <Button
                     size="small"
                     onClick={() => openEdit(u)}
+                    startIcon={<FontAwesomeIcon icon={faUserEdit} style={{ fontSize: 12 }} />}
                     sx={{
-                      color: 'primary.main',
-                      bgcolor: 'rgba(21,101,192,0.06)',
-                      '&:hover': { bgcolor: 'rgba(21,101,192,0.14)' },
+                      color: primaryDark,
+                      bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.08)',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      textTransform: 'capitalize',
                       borderRadius: '8px',
-                      px: 1.5,
+                      flex: 1,
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        bgcolor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15, 52, 96, 0.16)',
+                        transform: 'translateY(-2px)',
+                      },
                     }}
                   >
-                    <FontAwesomeIcon icon={faUserEdit} style={{ fontSize: 14 }} />
-                    <Typography variant="caption" sx={{ ml: 0.8, fontWeight: 600 }}>
-                      Editar
-                    </Typography>
-                  </IconButton>
+                    Editar
+                  </Button>
                 </Tooltip>
+
                 <Tooltip title={u.Status === 'Activo' ? 'Desactivar' : 'Activar'}>
-                  <IconButton
+                  <Button
                     size="small"
                     onClick={() => handleToggleStatus(u)}
+                    startIcon={
+                      toggleLoading === u.Id ? (
+                        <FontAwesomeIcon icon={faSpinner} spin style={{ fontSize: 12 }} />
+                      ) : (
+                        <FontAwesomeIcon
+                          icon={u.Status === 'Activo' ? faUserSlash : faUserCheck}
+                          style={{ fontSize: 12 }}
+                        />
+                      )
+                    }
+                    disabled={toggleLoading === u.Id}
                     sx={{
-                      color: u.Status === 'Activo' ? '#c62828' : '#2e7d32',
-                      bgcolor: u.Status === 'Activo' ? 'rgba(198,40,40,0.06)' : 'rgba(46,125,50,0.06)',
-                      '&:hover': {
-                        bgcolor: u.Status === 'Activo' ? 'rgba(198,40,40,0.14)' : 'rgba(46,125,50,0.14)',
-                      },
+                      color: u.Status === 'Activo' ? '#ef4444' : '#10b981',
+                      bgcolor: u.Status === 'Activo' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      textTransform: 'capitalize',
                       borderRadius: '8px',
-                      px: 1.5,
+                      flex: 1,
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        bgcolor: u.Status === 'Activo' ? 'rgba(239, 68, 68, 0.16)' : 'rgba(16, 185, 129, 0.16)',
+                        transform: 'translateY(-2px)',
+                      },
+                      '&:disabled': {
+                        opacity: 0.7,
+                        cursor: 'not-allowed',
+                      },
                     }}
                   >
-                    <FontAwesomeIcon
-                      icon={u.Status === 'Activo' ? faUserSlash : faUserCheck}
-                      style={{ fontSize: 14 }}
-                    />
-                    <Typography variant="caption" sx={{ ml: 0.8, fontWeight: 600 }}>
-                      {u.Status === 'Activo' ? 'Desactivar' : 'Activar'}
-                    </Typography>
-                  </IconButton>
+                    {u.Status === 'Activo' ? 'Desactivar' : 'Activar'}
+                  </Button>
                 </Tooltip>
               </CardActions>
             </Card>
-          </Grid>
         ))}
 
-        {usuarios.length === 0 && (
-          <Grid item xs={12}>
-            <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
-              <FontAwesomeIcon icon={faUsers} style={{ fontSize: 48, opacity: 0.2 }} />
-              <Typography variant="h6" mt={2} fontWeight={600}>
+        {usuarios.length === 0 && !loading && (
+          <Box sx={{ gridColumn: '1 / -1' }}>
+            <Paper
+              elevation={0}
+              sx={{
+                textAlign: 'center',
+                py: 10,
+                backgroundColor: 'rgba(15, 52, 96, 0.04)',
+                borderRadius: '16px',
+                border: '2px dashed rgba(15, 52, 96, 0.1)',
+              }}
+            >
+              <Box sx={{ color: '#94a3b8', mb: 2 }}>
+                <FontAwesomeIcon icon={faUsers} style={{ fontSize: 56, opacity: 0.3 }} />
+              </Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: primaryDark, mb: 1 }}>
                 No hay usuarios registrados
               </Typography>
-              <Typography variant="body2" mt={0.5}>
+              <Typography variant="body2" sx={{ color: muted, mb: 3 }}>
                 Crea el primer usuario con el botón de arriba.
               </Typography>
-            </Box>
-          </Grid>
+                <Button
+                variant="contained"
+                startIcon={<FontAwesomeIcon icon={faUserPlus} />}
+                onClick={openNew}
+                sx={{
+                  background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`,
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  textTransform: 'capitalize',
+                }}
+              >
+                Crear Usuario
+              </Button>
+            </Paper>
+          </Box>
         )}
-      </Grid>
+      </Box>
 
       {/* ---- Dialog crear/editar ---- */}
       <Dialog
         open={dialogOpen}
         onClose={closeDialog}
-        maxWidth="xs"
+        maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: '16px' } }}
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.15)',
+          },
+        }}
+        TransitionProps={{
+          timeout: { enter: 300, exit: 200 },
+        }}
       >
         <DialogTitle
           sx={{
-            background: 'linear-gradient(135deg, #1565c0, #42a5f5)',
+            position: 'relative',
+            zIndex: 2,
+            background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`,
             color: '#fff',
-            fontWeight: 700,
+            fontWeight: 800,
+            fontSize: '1.3rem',
             display: 'flex',
             alignItems: 'center',
             gap: 1.5,
-            mb: 4,
+            pb: 3,
+            pt: 3,
           }}
         >
-          <FontAwesomeIcon icon={isNew ? faUserPlus : faUserEdit} />
-          {isNew ? 'Nuevo Usuario' : 'Editar Usuario'}  
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: '10px',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <FontAwesomeIcon icon={isNew ? faUserPlus : faUserEdit} style={{ fontSize: 18 }} />
+          </Box>
+          {isNew ? 'Nuevo Usuario' : 'Editar Usuario'}
           <IconButton
             onClick={closeDialog}
-            sx={{ ml: 'auto', color: 'rgba(255,255,255,0.7)', '&:hover': { color: '#fff' } }}
-            size="small"
+            disabled={saving}
+            sx={{
+              ml: 'auto',
+              color: 'rgba(255,255,255,0.8)',
+              '&:hover': { color: '#fff', backgroundColor: 'rgba(255,255,255,0.15)' },
+            }}
           >
             <FontAwesomeIcon icon={faTimes} />
           </IconButton>
         </DialogTitle>
 
-        <DialogContent sx={{ pt: 4, pb: 1, overflow: 'visible' }}>
+        {saving && (
+          <LinearProgress
+            sx={{
+              height: '3px',
+              background: `linear-gradient(90deg, ${primaryDark}, ${primaryMain})`,
+            }}
+          />
+        )}
+
+        <DialogContent sx={{ pt: 10, pb: 2, overflow: 'visible' }}>
+          <Box component="form" autoComplete="off">
+          {saveSuccess && (
+            <Alert
+              severity="success"
+              icon={<FontAwesomeIcon icon={faCheckCircle} />}
+              sx={{
+                mb: 2,
+                borderRadius: '12px',
+                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                color: '#10b981',
+                fontWeight: 600,
+              }}
+            >
+              {isNew ? 'Usuario creado exitosamente' : 'Usuario actualizado exitosamente'}
+            </Alert>
+          )}
+
           {dialogMsg && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert
+              severity="error"
+              icon={<FontAwesomeIcon icon={faExclamationCircle} />}
+              sx={{
+                mb: 2,
+                borderRadius: '12px',
+                backgroundColor: 'rgba(244, 67, 54, 0.08)',
+                border: '1px solid rgba(244, 67, 54, 0.2)',
+                color: '#f44336',
+                fontWeight: 600,
+              }}
+            >
               {dialogMsg}
             </Alert>
           )}
@@ -404,6 +711,8 @@ export default function Usuarios() {
             fullWidth
             label="Nombre completo"
             name="Nombre"
+            autoComplete="off"
+            inputProps={{ autoComplete: 'off' }}
             value={form.Nombre}
             onChange={(e) => {
               setForm((p) => ({ ...p, Nombre: e.target.value }));
@@ -411,11 +720,22 @@ export default function Usuarios() {
             }}
             error={!!formErrors.Nombre}
             helperText={formErrors.Nombre}
-            sx={{ mb: 2 }}
+            disabled={saving}
+            sx={{
+              mt: 2,
+              mb: 2.5,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                '&.Mui-focused fieldset': {
+                  borderColor: primaryDark,
+                  borderWidth: '2px',
+                },
+              },
+            }}
             InputProps={{
               startAdornment: (
-                <Box sx={{ mr: 1, color: 'primary.main', opacity: 0.5 }}>
-                  <FontAwesomeIcon icon={faUser} style={{ fontSize: 14 }} />
+                <Box sx={{ mr: 1.5, color: primaryDark, opacity: 0.6 }}>
+                  <FontAwesomeIcon icon={faUser} />
                 </Box>
               ),
             }}
@@ -425,6 +745,8 @@ export default function Usuarios() {
             fullWidth
             label="Usuario (login)"
             name="Usuario"
+            autoComplete="off"
+            inputProps={{ autoComplete: 'off' }}
             value={form.Usuario}
             onChange={(e) => {
               setForm((p) => ({ ...p, Usuario: e.target.value }));
@@ -432,11 +754,21 @@ export default function Usuarios() {
             }}
             error={!!formErrors.Usuario}
             helperText={formErrors.Usuario}
-            sx={{ mb: 2 }}
+            disabled={saving}
+            sx={{
+              mb: 2.5,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                '&.Mui-focused fieldset': {
+                  borderColor: primaryDark,
+                  borderWidth: '2px',
+                },
+              },
+            }}
             InputProps={{
               startAdornment: (
-                <Box sx={{ mr: 1, color: 'primary.main', opacity: 0.5 }}>
-                  <FontAwesomeIcon icon={faUser} style={{ fontSize: 14 }} />
+                <Box sx={{ mr: 1.5, color: primaryDark, opacity: 0.6 }}>
+                  <FontAwesomeIcon icon={faUser} />
                 </Box>
               ),
             }}
@@ -449,10 +781,28 @@ export default function Usuarios() {
             name="Rol"
             value={form.Rol}
             onChange={(e) => setForm((p) => ({ ...p, Rol: e.target.value }))}
-            sx={{ mb: 2 }}
+            disabled={saving}
+            sx={{
+              mb: 2.5,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                '&.Mui-focused fieldset': {
+                  borderColor: primaryDark,
+                  borderWidth: '2px',
+                },
+              },
+            }}
           >
-            <MenuItem value="Admin">Admin</MenuItem>
-            <MenuItem value="Operador">Operador</MenuItem>
+            <MenuItem value="Admin">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                👑 Admin
+              </Box>
+            </MenuItem>
+            <MenuItem value="Operador">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                👤 Operador
+              </Box>
+            </MenuItem>
           </TextField>
 
           <TextField
@@ -460,6 +810,8 @@ export default function Usuarios() {
             label={isNew ? 'Contraseña' : 'Nueva contraseña (opcional)'}
             name="Password"
             type="password"
+            autoComplete="new-password"
+            inputProps={{ autoComplete: 'new-password' }}
             value={form.Password}
             onChange={(e) => {
               setForm((p) => ({ ...p, Password: e.target.value }));
@@ -467,11 +819,21 @@ export default function Usuarios() {
             }}
             error={!!formErrors.Password}
             helperText={formErrors.Password || (isNew ? '' : 'Déjala vacía para no cambiarla.')}
-            sx={{ mb: 2 }}
+            disabled={saving}
+            sx={{
+              mb: 2.5,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '12px',
+                '&.Mui-focused fieldset': {
+                  borderColor: primaryDark,
+                  borderWidth: '2px',
+                },
+              },
+            }}
             InputProps={{
               startAdornment: (
-                <Box sx={{ mr: 1, color: 'primary.main', opacity: 0.5 }}>
-                  <FontAwesomeIcon icon={faKey} style={{ fontSize: 14 }} />
+                <Box sx={{ mr: 1.5, color: primaryDark, opacity: 0.6 }}>
+                  <FontAwesomeIcon icon={faKey} />
                 </Box>
               ),
             }}
@@ -483,6 +845,8 @@ export default function Usuarios() {
               label="Confirmar contraseña"
               name="confirmPassword"
               type="password"
+              autoComplete="new-password"
+              inputProps={{ autoComplete: 'new-password' }}
               value={form.confirmPassword}
               onChange={(e) => {
                 setForm((p) => ({ ...p, confirmPassword: e.target.value }));
@@ -490,44 +854,82 @@ export default function Usuarios() {
               }}
               error={!!formErrors.confirmPassword}
               helperText={formErrors.confirmPassword}
-              sx={{ mb: 2 }}
+              disabled={saving}
+              sx={{
+                mb: 2.5,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '12px',
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#0F3460',
+                    borderWidth: '2px',
+                  },
+                },
+              }}
               InputProps={{
-                startAdornment: (
-                  <Box sx={{ mr: 1, color: 'primary.main', opacity: 0.5 }}>
-                    <FontAwesomeIcon icon={faKey} style={{ fontSize: 14 }} />
-                  </Box>
-                ),
+                  startAdornment: (
+                    <Box sx={{ mr: 1.5, color: primaryDark, opacity: 0.6 }}>
+                      <FontAwesomeIcon icon={faKey} />
+                    </Box>
+                  ),
               }}
             />
           )}
+          </Box>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button onClick={closeDialog} variant="outlined" sx={{ borderRadius: '8px', fontWeight: 600 }}>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
+          <Button
+            onClick={closeDialog}
+            disabled={saving}
+            variant="outlined"
+            sx={{
+              borderRadius: '10px',
+              fontWeight: 700,
+              textTransform: 'capitalize',
+              borderColor: '#e2e8f0',
+              color: '#64748b',
+              '&:hover': {
+                borderColor: '#cbd5e1',
+                backgroundColor: 'rgba(100, 116, 139, 0.04)',
+              },
+            }}
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleSave}
             variant="contained"
-            disabled={saving}
+            disabled={saving || saveSuccess}
             startIcon={
               saving ? (
                 <FontAwesomeIcon icon={faSpinner} spin />
+              ) : saveSuccess ? (
+                <FontAwesomeIcon icon={faCheckCircle} />
               ) : (
                 <FontAwesomeIcon icon={faSave} />
               )
             }
             sx={{
-              background: 'linear-gradient(135deg, #1565c0, #42a5f5)',
-              borderRadius: '8px',
-              fontWeight: 600,
-              '&:hover': { background: 'linear-gradient(135deg, #0d47a1, #1565c0)' },
+              background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`,
+              borderRadius: '10px',
+              fontWeight: 700,
+              textTransform: 'capitalize',
+              px: 3,
+              transition: 'all 0.3s',
+              '&:hover:not(:disabled)': {
+                background: 'linear-gradient(135deg, #0a1f33 0%, #0F3460 100%)',
+                transform: 'translateY(-1px)',
+              },
+              '&:disabled': {
+                opacity: 0.9,
+              },
             }}
           >
-            {saving ? 'Guardando...' : 'Guardar'}
+            {saving ? 'Guardando...' : saveSuccess ? 'Guardado' : 'Guardar'}
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
   );
 }
+

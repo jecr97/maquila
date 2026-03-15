@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Box, Button, Chip, Card, CardContent, Dialog, DialogActions, DialogContent,
+  Box, Button, Chip, Card, CardContent, CardActions, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, Paper, TextField, Tooltip, Typography, Alert,
-  CircularProgress, Tabs, Tab, useTheme,
+  Divider, Skeleton, Tabs, Tab, useTheme,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faIndustry, faPlay, faFlagCheckered, faEye, faTimes, faPlus, faSpinner,
+  faExclamationCircle,
 } from '@fortawesome/free-solid-svg-icons';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -15,13 +16,37 @@ const statusColor = {
   Comenzado:  { bg: 'rgba(180,83,9,0.08)', color: '#b45309', border: 'rgba(180,83,9,0.25)' },
   Finalizado: { bg: 'rgba(46,125,50,0.08)', color: '#2e7d32', border: 'rgba(46,125,50,0.25)' },
 };
+
+const CARD_GRADIENTS = [
+  ['#1565c0', '#42a5f5'],
+  ['#b45309', '#f59e0b'],
+  ['#2e7d32', '#4ade80'],
+  ['#6b21a8', '#9333ea'],
+  ['#0f172a', '#0ea5e9'],
+  ['#134e4a', '#14b8a6'],
+];
+
+function cardGradient(seed = '') {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  const [from, to] = CARD_GRADIENTS[Math.abs(hash) % CARD_GRADIENTS.length];
+  return `linear-gradient(135deg, ${from} 0%, ${to} 100%)`;
+}
+
 const fmt = (v) => Number(v).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
 export default function Produccion() {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+  const primaryMain = theme.palette.primary.main || '#1565c0';
+  const primaryDark = theme.palette.primary.dark || '#0F3460';
+  const muted = theme.palette.text.secondary;
+  const bg = theme.palette.background.default;
   const surface = theme.palette.background.paper;
+  const errorColor = theme.palette.error.main;
   const cardBg = isDark ? '#0B1724' : surface;
+  const cardBorderColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.1)';
+  const dividerColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.08)';
 
   const statusColor = {
     Registrado: { bg: isDark ? 'rgba(21,101,192,0.15)' : 'rgba(21,101,192,0.08)', color: isDark ? '#42a5f5' : '#1565c0', border: isDark ? 'rgba(21,101,192,0.4)' : 'rgba(21,101,192,0.25)', accent: '#1565c0' },
@@ -104,84 +129,120 @@ export default function Produccion() {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <Box sx={{ width: 48, height: 48, borderRadius: '12px', background: 'linear-gradient(135deg, #1565c0, #42a5f5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <FontAwesomeIcon icon={faIndustry} style={{ color: '#fff', fontSize: 20 }} />
-        </Box>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, backgroundColor: bg, minHeight: '100vh' }}>
+      {/* Header premium */}
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', mb: 4, gap: 2 }}>
         <Box>
-          <Typography variant="h5" fontWeight={700} color="primary.main">Producción</Typography>
-          <Typography variant="body2" color="text.secondary">Seguimiento del proceso productivo</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+            <Box sx={{ width: 56, height: 56, borderRadius: '14px', background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(15, 52, 96, 0.25)' }}>
+              <FontAwesomeIcon icon={faIndustry} style={{ color: '#fff', fontSize: 24 }} />
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`, backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Producción
+              </Typography>
+              <Typography variant="body2" sx={{ color: muted, fontWeight: 500 }}>
+                Seguimiento del proceso productivo
+              </Typography>
+            </Box>
+          </Box>
         </Box>
       </Box>
 
-      <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', mb: 2, p: 2 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 1.5 }} TabIndicatorProps={{ sx: { bgcolor: 'primary.main' } }}>
-          <Tab label="Todos" sx={{ fontWeight: 600, textTransform: 'none' }} />
-          <Tab label="Registrados" sx={{ fontWeight: 600, textTransform: 'none' }} />
-          <Tab label="En Producción" sx={{ fontWeight: 600, textTransform: 'none' }} />
-          <Tab label="Finalizados" sx={{ fontWeight: 600, textTransform: 'none' }} />
+      {/* Filters */}
+      <Paper elevation={0} sx={{ border: '1px solid', borderColor: dividerColor, borderRadius: '14px', mb: 3, p: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(15, 52, 96, 0.02)' }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 1.5 }} TabIndicatorProps={{ sx: { bgcolor: primaryMain, height: 3, borderRadius: '3px' } }}>
+          <Tab label="Todos" sx={{ fontWeight: 700, textTransform: 'none', color: muted, '&.Mui-selected': { color: primaryDark } }} />
+          <Tab label="Registrados" sx={{ fontWeight: 700, textTransform: 'none', color: muted, '&.Mui-selected': { color: primaryDark } }} />
+          <Tab label="En Producción" sx={{ fontWeight: 700, textTransform: 'none', color: muted, '&.Mui-selected': { color: primaryDark } }} />
+          <Tab label="Finalizados" sx={{ fontWeight: 700, textTransform: 'none', color: muted, '&.Mui-selected': { color: primaryDark } }} />
         </Tabs>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField label="Desde" type="date" size="small" value={desde}
             onChange={e => { setDesde(e.target.value); setDateErr(''); if (hasta && e.target.value > hasta) setHasta(''); }}
-            InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
+            InputLabelProps={{ shrink: true }} sx={{ width: 170, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
           <TextField label="Hasta" type="date" size="small" value={hasta}
             onChange={e => handleHastaChange(e.target.value)}
-            InputLabelProps={{ shrink: true }} sx={{ width: 170 }}
+            InputLabelProps={{ shrink: true }} sx={{ width: 170, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             inputProps={{ min: desde || undefined }} />
-          {(desde || hasta) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setDateErr(''); }} sx={{ fontWeight: 600 }}>Limpiar</Button>}
+          {(desde || hasta) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setDateErr(''); }} sx={{ fontWeight: 700, color: primaryDark, borderRadius: '8px' }}>Limpiar</Button>}
         </Box>
-        {dateErr && <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2, py: 0.5 }}>{dateErr}</Alert>}
+        {dateErr && <Alert severity="warning" sx={{ mt: 1.5, borderRadius: '10px', py: 0.5 }}>{dateErr}</Alert>}
       </Paper>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: '12px', border: '1px solid', borderColor: 'rgba(244, 67, 54, 0.18)', backgroundColor: 'rgba(244, 67, 54, 0.06)', '& .MuiAlert-icon': { color: errorColor } }} onClose={() => setError('')}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><FontAwesomeIcon icon={faExclamationCircle} />{error}</Box>
+        </Alert>
+      )}
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress sx={{ color: 'primary.main' }} /></Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' }, gap: 3 }}>
+          {[...Array(6)].map((_, i) => <Box key={i}><Skeleton variant="rounded" height={300} sx={{ borderRadius: '16px' }} /></Box>)}
+        </Box>
       ) : rows.length === 0 ? (
-        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '16px', p: 6, textAlign: 'center' }}>
-          <Box sx={{ width: 56, height: 56, borderRadius: '14px', background: 'linear-gradient(135deg, #1565c0, #42a5f5)', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2 }}>
-            <FontAwesomeIcon icon={faIndustry} style={{ color: '#fff', fontSize: 22 }} />
-          </Box>
-          <Typography fontWeight={600} color="text.secondary">Sin cortes en este estado.</Typography>
+        <Paper elevation={0} sx={{ textAlign: 'center', py: 10, backgroundColor: 'rgba(15, 52, 96, 0.04)', borderRadius: '16px', border: '2px dashed rgba(15, 52, 96, 0.1)' }}>
+          <Box sx={{ color: '#94a3b8', mb: 2 }}><FontAwesomeIcon icon={faIndustry} style={{ fontSize: 56, opacity: 0.3 }} /></Box>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: primaryDark, mb: 1 }}>Sin cortes en este estado</Typography>
+          <Typography variant="body2" sx={{ color: muted }}>No se encontraron cortes con los filtros aplicados.</Typography>
         </Paper>
       ) : (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 2.5 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(3,1fr)' }, gap: 3 }}>
           {rows.map(r => {
             const sc = statusColor[r.Status] || statusColor.Registrado;
             return (
-              <Card key={r.Id} elevation={0} sx={{ borderRadius: '16px', background: cardBg, border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, borderTop: `4px solid ${sc.accent}`, transition: 'all 0.25s ease', '&:hover': { transform: 'translateY(-4px)', boxShadow: isDark ? '0 12px 32px rgba(0,0,0,0.45)' : '0 12px 32px rgba(21,101,192,0.1)' } }}>
-                <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+              <Card key={r.Id} elevation={0} sx={{
+                borderRadius: '16px', border: '1px solid', borderColor: cardBorderColor,
+                backgroundColor: cardBg, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', overflow: 'hidden', position: 'relative',
+                '&:hover': { transform: 'translateY(-8px)', boxShadow: isDark ? '0 16px 48px rgba(0,0,0,0.6)' : '0 16px 48px rgba(15, 52, 96, 0.12)' },
+              }}>
+                <Box sx={{ height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: cardGradient(r.Folio || r.NombrePrenda || '') }}>
+                  <Box sx={{ position: 'absolute', right: -8, bottom: -8, opacity: 0.14, color: '#fff' }}>
+                    <FontAwesomeIcon icon={faIndustry} style={{ fontSize: 82 }} />
+                  </Box>
+                  <Box sx={{ width: 54, height: 54, borderRadius: '14px', bgcolor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', border: '1.5px solid rgba(255,255,255,0.35)', zIndex: 1 }}>
+                    <FontAwesomeIcon icon={faIndustry} style={{ color: '#fff', fontSize: 26 }} />
+                  </Box>
+                </Box>
+
+                <CardContent sx={{ pb: 1, pt: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                    <Typography fontWeight={700} fontFamily="monospace" fontSize="0.82rem"
-                      sx={{ color: sc.color, bgcolor: sc.bg, px: 1.2, py: 0.4, borderRadius: '6px', border: `1px solid ${sc.border}` }}>
+                    <Typography fontWeight={800} fontFamily="monospace" fontSize="0.85rem" sx={{ color: sc.color, bgcolor: sc.bg, px: 1.2, py: 0.4, borderRadius: '8px', border: `1px solid ${sc.border}` }}>
                       {r.Folio}
                     </Typography>
-                    <Chip label={r.Status} size="small" sx={{ fontWeight: 600, fontSize: '0.68rem', height: 22, bgcolor: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }} />
+                    <Chip label={r.Status} size="small" icon={<Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: sc.color, display: 'inline-block', mr: 0.5 }} />}
+                      sx={{ fontWeight: 700, fontSize: '0.72rem', bgcolor: sc.bg, color: sc.color, border: `1.5px solid ${sc.border}` }} />
                   </Box>
-                  <Typography fontWeight={700} fontSize="0.95rem" mb={0.3}>{r.NombrePrenda || '—'}</Typography>
-                  <Typography variant="body2" color="text.secondary" mb={1.5}>{r.NombreCorte || '—'}</Typography>
-                  <Box sx={{ display: 'flex', gap: 2.5, mb: 1.5 }}>
-                    <Box><Typography variant="caption" color="text.secondary" display="block">Piezas</Typography><Typography fontWeight={700}>{r.CantidadPiezas}</Typography></Box>
-                    <Box><Typography variant="caption" color="text.secondary" display="block">P. Unit.</Typography><Typography fontWeight={700} color="primary.main">{fmt(r.PrecioUnitario)}</Typography></Box>
-                  </Box>
-                  <Box sx={{ height: '1px', bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', mb: 1.5 }} />
-                  <Box sx={{ display: 'flex', gap: 0.8, justifyContent: 'flex-end' }}>
-                    <Tooltip title="Ver detalle">
-                      <IconButton size="small" onClick={() => openDetail(r.Id)} sx={{ color: '#1565c0', bgcolor: 'rgba(21,101,192,0.07)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(21,101,192,0.15)' } }}>
-                        <FontAwesomeIcon icon={faEye} style={{ fontSize: 13 }} />
-                      </IconButton>
-                    </Tooltip>
-                    {r.Status === 'Comenzado' && (
-                      <Tooltip title="Registrar avance">
-                        <IconButton size="small" onClick={() => openAvance(r)} sx={{ color: '#b45309', bgcolor: 'rgba(180,83,9,0.07)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(180,83,9,0.15)' } }}>
-                          <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} />
-                        </IconButton>
-                      </Tooltip>
-                    )}
+                  <Typography variant="h6" sx={{ fontWeight: 700, background: cardGradient(r.Folio || r.NombrePrenda || ''), backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1.3, mb: 0.3, fontSize: '1rem' }}>{r.NombrePrenda || '—'}</Typography>
+                  <Typography variant="body2" sx={{ color: muted, fontWeight: 500, fontSize: '0.85rem', mb: 1.2 }}>{r.NombreCorte || '—'}</Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, mb: 1.5 }}>
+                    <Box sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15, 52, 96, 0.04)', borderRadius: '10px', p: 1.2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block" mb={0.2}>Piezas</Typography>
+                      <Typography fontWeight={800} fontSize="1.15rem" lineHeight={1}>{r.CantidadPiezas}</Typography>
+                    </Box>
+                    <Box sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15, 52, 96, 0.04)', borderRadius: '10px', p: 1.2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block" mb={0.2}>P. Unit.</Typography>
+                      <Typography fontWeight={800} fontSize="0.88rem" sx={{ color: primaryMain }} lineHeight={1.2}>{fmt(r.PrecioUnitario)}</Typography>
+                    </Box>
                   </Box>
                 </CardContent>
+                <Divider sx={{ borderColor: dividerColor }} />
+                <CardActions sx={{ justifyContent: 'center', gap: 1, py: 1.5, px: 1 }}>
+                  <Tooltip title="Ver detalle">
+                    <Button size="small" onClick={() => openDetail(r.Id)} startIcon={<FontAwesomeIcon icon={faEye} style={{ fontSize: 11 }} />}
+                      sx={{ color: primaryDark, bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.08)', fontWeight: 700, fontSize: '0.8rem', textTransform: 'capitalize', borderRadius: '8px', flex: 1, transition: 'all 0.2s', '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(15, 52, 96, 0.16)', transform: 'translateY(-2px)' } }}>
+                      Detalle
+                    </Button>
+                  </Tooltip>
+                  {r.Status === 'Comenzado' && (
+                    <Tooltip title="Registrar avance">
+                      <Button size="small" onClick={() => openAvance(r)} startIcon={<FontAwesomeIcon icon={faPlus} style={{ fontSize: 11 }} />}
+                        sx={{ color: '#b45309', bgcolor: 'rgba(180,83,9,0.08)', fontWeight: 700, fontSize: '0.8rem', textTransform: 'capitalize', borderRadius: '8px', flex: 1, transition: 'all 0.2s', '&:hover': { bgcolor: 'rgba(180,83,9,0.16)', transform: 'translateY(-2px)' } }}>
+                        Avance
+                      </Button>
+                    </Tooltip>
+                  )}
+                </CardActions>
               </Card>
             );
           })}

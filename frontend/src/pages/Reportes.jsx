@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  Box, Button, Card, CardContent, Grid, Paper, Table, TableBody, TableCell,
+  Box, Button, Card, CardContent, Paper, Skeleton, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField, Typography, Alert,
-  CircularProgress, FormControl, InputLabel, MenuItem, Select, useTheme,
+  FormControl, InputLabel, MenuItem, Select, useTheme,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faChartBar, faDownload, faLayerGroup, faGear, faCircleCheck,
-  faTriangleExclamation, faDollarSign, faCubes,
+  faTriangleExclamation, faDollarSign, faCubes, faExclamationCircle,
 } from '@fortawesome/free-solid-svg-icons';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -25,6 +25,12 @@ const statCards = [
 export default function Reportes() {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+  const primaryMain = theme.palette.primary.main || '#1565c0';
+  const primaryDark = theme.palette.primary.dark || '#0F3460';
+  const muted = theme.palette.text.secondary;
+  const bg = theme.palette.background.default;
+  const errorColor = theme.palette.error.main;
+  const dividerColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.08)';
 
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
@@ -99,75 +105,90 @@ export default function Reportes() {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, backgroundColor: bg, minHeight: '100vh' }}>
+      {/* Header premium */}
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', mb: 4, gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box sx={{ width: 48, height: 48, borderRadius: '12px', background: 'linear-gradient(135deg, #1565c0, #42a5f5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <FontAwesomeIcon icon={faChartBar} style={{ color: '#fff', fontSize: 20 }} />
+          <Box sx={{ width: 56, height: 56, borderRadius: '14px', background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(15, 52, 96, 0.25)' }}>
+            <FontAwesomeIcon icon={faChartBar} style={{ color: '#fff', fontSize: 24 }} />
           </Box>
           <Box>
-            <Typography variant="h5" fontWeight={700} color="primary.main">Reportes</Typography>
-            <Typography variant="body2" color="text.secondary">Estadísticas de producción</Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, background: `linear-gradient(135deg, ${primaryDark} 0%, ${primaryMain} 100%)`, backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Reportes
+            </Typography>
+            <Typography variant="body2" sx={{ color: muted, fontWeight: 500 }}>
+              Estadísticas de producción
+            </Typography>
           </Box>
         </Box>
         <Button variant="contained" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleDownload} disabled={!data}
-          sx={{ background: 'linear-gradient(135deg, #1565c0, #42a5f5)', borderRadius: '10px', fontWeight: 600, px: 3, '&:hover': { background: 'linear-gradient(135deg, #0d47a1, #1565c0)' } }}>
+          sx={{ background: `linear-gradient(135deg, ${primaryDark}, ${primaryMain})`, borderRadius: '12px', fontWeight: 700, px: 3, py: 1.2, textTransform: 'none', boxShadow: '0 4px 14px rgba(15, 52, 96, 0.25)', '&:hover': { background: `linear-gradient(135deg, #0d47a1, ${primaryDark})`, boxShadow: '0 6px 20px rgba(15, 52, 96, 0.35)' } }}>
           Descargar Informe
         </Button>
       </Box>
 
-      <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', mb: 3, p: 2 }}>
+      {/* Filters */}
+      <Paper elevation={0} sx={{ border: '1px solid', borderColor: dividerColor, borderRadius: '14px', mb: 3, p: 2, backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(15, 52, 96, 0.02)' }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField label="Desde" type="date" size="small" value={desde}
             onChange={e => { setDesde(e.target.value); setDateErr(''); if (hasta && e.target.value > hasta) setHasta(''); }}
-            InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
+            InputLabelProps={{ shrink: true }} sx={{ width: 170, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
           <TextField label="Hasta" type="date" size="small" value={hasta}
             onChange={e => handleHastaChange(e.target.value)}
-            InputLabelProps={{ shrink: true }} sx={{ width: 170 }}
+            InputLabelProps={{ shrink: true }} sx={{ width: 170, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             inputProps={{ min: desde || undefined }} />
-          <FormControl size="small" sx={{ minWidth: 200 }}>
+          <FormControl size="small" sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}>
             <InputLabel>Proveedor</InputLabel>
             <Select label="Proveedor" value={idProveedor} onChange={e => setIdProveedor(e.target.value)}>
               <MenuItem value="">Todos</MenuItem>
               {proveedores.map(p => <MenuItem key={p.Id} value={p.Id}>{p.Nombre}</MenuItem>)}
             </Select>
           </FormControl>
-          {(desde || hasta || idProveedor) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setIdProveedor(''); setDateErr(''); }} sx={{ fontWeight: 600 }}>Limpiar</Button>}
+          {(desde || hasta || idProveedor) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setIdProveedor(''); setDateErr(''); }} sx={{ fontWeight: 700, color: primaryDark, borderRadius: '8px' }}>Limpiar</Button>}
         </Box>
-        {dateErr && <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2, py: 0.5 }}>{dateErr}</Alert>}
+        {dateErr && <Alert severity="warning" sx={{ mt: 1.5, borderRadius: '10px', py: 0.5 }}>{dateErr}</Alert>}
       </Paper>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: '12px', border: '1px solid', borderColor: 'rgba(244, 67, 54, 0.18)', backgroundColor: 'rgba(244, 67, 54, 0.06)', '& .MuiAlert-icon': { color: errorColor } }} onClose={() => setError('')}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><FontAwesomeIcon icon={faExclamationCircle} />{error}</Box>
+        </Alert>
+      )}
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress sx={{ color: 'primary.main' }} /></Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(6,1fr)' }, gap: 2.5, mb: 3 }}>
+          {[...Array(6)].map((_, i) => <Box key={i}><Skeleton variant="rounded" height={120} sx={{ borderRadius: '16px' }} /></Box>)}
+        </Box>
       ) : data && (<>
         {/* Stat cards */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(6,1fr)' }, gap: 2.5, mb: 3 }}>
           {statCards.map(({ key, label, icon, gradient, shadow }) => (
-            <Grid item xs={6} sm={4} md={2} key={key}>
-              <Card elevation={0} sx={{ borderRadius: '14px', overflow: 'hidden', boxShadow: `0 4px 16px ${shadow}`, transition: '0.3s', '&:hover': { transform: 'translateY(-3px)', boxShadow: `0 8px 28px ${shadow}` } }}>
-                <CardContent sx={{ p: 0 }}>
-                  <Box sx={{ background: gradient, p: 2, textAlign: 'center' }}>
-                    <FontAwesomeIcon icon={icon} style={{ color: '#fff', fontSize: 22, marginBottom: 6 }} />
-                    <Typography variant="h4" fontWeight={800} color="#fff" lineHeight={1}>{data[key]}</Typography>
-                    <Typography variant="caption" color="rgba(255,255,255,0.8)" fontWeight={500}>{label}</Typography>
+              <Card key={key} elevation={0} sx={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid', borderColor: dividerColor, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', '&:hover': { transform: 'translateY(-6px)', boxShadow: `0 12px 32px ${shadow}` } }}>
+                <Box sx={{ height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: gradient }}>
+                  <Box sx={{ position: 'absolute', right: -8, bottom: -8, opacity: 0.14, color: '#fff' }}>
+                    <FontAwesomeIcon icon={icon} style={{ fontSize: 82 }} />
                   </Box>
+                  <Box sx={{ width: 54, height: 54, borderRadius: '14px', bgcolor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', border: '1.5px solid rgba(255,255,255,0.35)', zIndex: 1 }}>
+                    <FontAwesomeIcon icon={icon} style={{ color: '#fff', fontSize: 22 }} />
+                  </Box>
+                </Box>
+                <CardContent sx={{ py: 2.5, px: 2, textAlign: 'center' }}>
+                  <Typography variant="h4" fontWeight={800} sx={{ color: primaryDark, lineHeight: 1.1 }}>{data[key]}</Typography>
+                  <Typography variant="caption" sx={{ color: muted, fontWeight: 600, mt: 0.5, display: 'block' }}>{label}</Typography>
                 </CardContent>
               </Card>
-            </Grid>
-          ))}
-        </Grid>
+            ))}
+          </Box>
 
         {/* Monto total */}
-        <Paper elevation={0} sx={{ border: '1px solid rgba(46,125,50,0.2)', borderRadius: '14px', p: 3, mb: 3, background: 'rgba(46,125,50,0.03)' }}>
+        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'rgba(4,120,87,0.2)', borderRadius: '16px', p: 3, mb: 3, background: isDark ? 'rgba(4,120,87,0.06)' : 'rgba(4,120,87,0.03)', position: 'relative', overflow: 'hidden', '&::before': { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #047857, #10b981)' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ width: 52, height: 52, borderRadius: '12px', background: 'linear-gradient(135deg, #047857, #10b981)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: 56, height: 56, borderRadius: '14px', background: 'linear-gradient(135deg, #047857, #10b981)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(4, 120, 87, 0.25)' }}>
               <FontAwesomeIcon icon={faDollarSign} style={{ color: '#fff', fontSize: 24 }} />
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary" fontWeight={500}>Monto Total Ganado</Typography>
-              <Typography variant="h4" fontWeight={800} color="#2e7d32">{fmt(data.montoTotal)}</Typography>
+              <Typography variant="caption" sx={{ color: muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Monto Total Ganado</Typography>
+              <Typography variant="h4" fontWeight={800} sx={{ color: '#2e7d32', lineHeight: 1.2 }}>{fmt(data.montoTotal)}</Typography>
             </Box>
           </Box>
         </Paper>
@@ -175,24 +196,27 @@ export default function Reportes() {
         {/* Tabla faltantes detalle */}
         {data.faltantesDetalle?.length > 0 && (
           <Box>
-            <Typography variant="h6" fontWeight={700} color="primary.main" mb={1.5}>Detalle de Piezas Faltantes</Typography>
-            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '14px', overflowX: 'auto' }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: primaryDark, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FontAwesomeIcon icon={faTriangleExclamation} style={{ color: '#c62828', fontSize: 18 }} />
+              Detalle de Piezas Faltantes
+            </Typography>
+            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: dividerColor, borderRadius: '16px', overflowX: 'auto', overflow: 'hidden' }}>
               <Table sx={{ minWidth: 500 }}>
                 <TableHead>
-                  <TableRow sx={{ background: 'linear-gradient(135deg, #1565c0, #42a5f5)' }}>
+                  <TableRow sx={{ background: `linear-gradient(135deg, ${primaryDark}, ${primaryMain})` }}>
                     {['Folio', 'Prenda', 'Corte', 'Total Faltantes'].map(h => (
-                      <TableCell key={h} sx={{ color: '#fff', fontWeight: 700, fontSize: '0.82rem', py: 1.8 }}>{h}</TableCell>
+                      <TableCell key={h} sx={{ color: '#fff', fontWeight: 700, fontSize: '0.82rem', py: 2, borderBottom: 'none' }}>{h}</TableCell>
                     ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {data.faltantesDetalle.map((f, i) => (
-                    <TableRow key={i} sx={{ '&:hover': { bgcolor: 'rgba(21,101,192,0.03)' } }}>
-                      <TableCell sx={{ fontWeight: 700, color: 'primary.main', fontFamily: 'monospace' }}>{f.Folio}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{f.NombrePrenda || '—'}</TableCell>
-                      <TableCell>{f.NombreCorte || '—'}</TableCell>
+                    <TableRow key={i} sx={{ '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15, 52, 96, 0.03)' }, '&:last-child td': { borderBottom: 'none' } }}>
+                      <TableCell sx={{ fontWeight: 700, color: primaryMain, fontFamily: 'monospace' }}>{f.Folio}</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: primaryDark }}>{f.NombrePrenda || '—'}</TableCell>
+                      <TableCell sx={{ color: muted }}>{f.NombreCorte || '—'}</TableCell>
                       <TableCell>
-                        <Typography fontWeight={700} color="#c62828">{f.TotalFaltante}</Typography>
+                        <Typography fontWeight={800} sx={{ color: '#c62828', bgcolor: 'rgba(198,40,40,0.08)', display: 'inline-block', px: 1.5, py: 0.3, borderRadius: '6px', fontSize: '0.9rem' }}>{f.TotalFaltante}</Typography>
                       </TableCell>
                     </TableRow>
                   ))}

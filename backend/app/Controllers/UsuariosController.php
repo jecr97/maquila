@@ -3,6 +3,8 @@
 namespace App\Controllers;
 
 use App\Models\UsuarioModel;
+use App\Models\UsuarioModuloModel;
+use App\Models\ModuloModel;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class UsuariosController extends BaseController
@@ -77,13 +79,24 @@ class UsuariosController extends BaseController
                 ->setJSON(['success' => false, 'message' => 'Credenciales inválidas.']);
         }
 
+        // Obtener módulos asignados al usuario
+        $umModel = new UsuarioModuloModel();
+        $modulos = $umModel->getModulosDeUsuario((int) $usuario['Id']);
+
+        // Si es Admin y no tiene módulos asignados, devolver todos los activos
+        if ($usuario['Rol'] === 'Admin' && empty($modulos)) {
+            $moduloModel = new ModuloModel();
+            $modulos = $moduloModel->getActivos();
+        }
+
         return $this->response->setJSON([
             'success' => true,
             'message' => 'Login exitoso.',
             'user'    => [
-                'id'     => $usuario['Id'],
-                'nombre' => $usuario['Nombre'],
-                'rol'    => $usuario['Rol'],
+                'id'      => $usuario['Id'],
+                'nombre'  => $usuario['Nombre'],
+                'rol'     => $usuario['Rol'],
+                'modulos' => $modulos,
             ],
         ]);
     }

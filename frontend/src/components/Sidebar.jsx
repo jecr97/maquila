@@ -9,6 +9,7 @@ import {
   Divider,
 } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faGauge,
@@ -25,7 +26,7 @@ import {
 
 export const DRAWER_WIDTH = 270;
 
-const menuItems = [
+const allMenuItems = [
   { label: 'Dashboard', icon: faGauge, path: '/' },
   { label: 'Usuarios', icon: faUsers, path: '/usuarios' },
   { label: 'Proveedores', icon: faBuilding, path: '/proveedores' },
@@ -41,6 +42,9 @@ const menuItems = [
 function SidebarContent({ onItemClick }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { tieneAcceso } = useAuth();
+
+  const menuItems = allMenuItems.filter(({ path }) => tieneAcceso(path));
 
   const handleNav = (path) => {
     navigate(path);

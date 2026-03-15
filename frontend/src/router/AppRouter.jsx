@@ -18,6 +18,12 @@ function PrivateRoute({ children }) {
   return isAuth ? children : <Navigate to="/login" replace />;
 }
 
+/** Protege una ruta individual según los módulos asignados al usuario */
+function ModuleRoute({ path, children }) {
+  const { tieneAcceso } = useAuth();
+  return tieneAcceso(path) ? children : <Navigate to="/" replace />;
+}
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
@@ -32,15 +38,15 @@ export default function AppRouter() {
           }
         >
           <Route index element={<Dashboard />} />
-          <Route path="usuarios" element={<Usuarios />} />
-          <Route path="proveedores" element={<Proveedores />} />
-          <Route path="tipos-prenda" element={<TiposPrenda />} />
-          <Route path="tipos-corte" element={<TiposCorte />} />
-          <Route path="precios-maquila" element={<PreciosMaquila />} />
-          <Route path="cortes" element={<Cortes />} />
-          <Route path="produccion" element={<Produccion />} />
-          <Route path="piezas-faltantes" element={<PiezasFaltantes />} />
-          <Route path="reportes" element={<Reportes />} />
+          <Route path="usuarios" element={<ModuleRoute path="/usuarios"><Usuarios /></ModuleRoute>} />
+          <Route path="proveedores" element={<ModuleRoute path="/proveedores"><Proveedores /></ModuleRoute>} />
+          <Route path="tipos-prenda" element={<ModuleRoute path="/tipos-prenda"><TiposPrenda /></ModuleRoute>} />
+          <Route path="tipos-corte" element={<ModuleRoute path="/tipos-corte"><TiposCorte /></ModuleRoute>} />
+          <Route path="precios-maquila" element={<ModuleRoute path="/precios-maquila"><PreciosMaquila /></ModuleRoute>} />
+          <Route path="cortes" element={<ModuleRoute path="/cortes"><Cortes /></ModuleRoute>} />
+          <Route path="produccion" element={<ModuleRoute path="/produccion"><Produccion /></ModuleRoute>} />
+          <Route path="piezas-faltantes" element={<ModuleRoute path="/piezas-faltantes"><PiezasFaltantes /></ModuleRoute>} />
+          <Route path="reportes" element={<ModuleRoute path="/reportes"><Reportes /></ModuleRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

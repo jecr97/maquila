@@ -79,4 +79,9 @@ $routes->group('api', ['namespace' => 'App\Controllers'], function ($routes) {
     $routes->put('proveedores/(:num)', 'ProveedorController::update/$1');
     $routes->patch('proveedores/(:num)/status', 'ProveedorController::toggleStatus/$1');
     $routes->delete('proveedores/(:num)', 'ProveedorController::destroy/$1');
+
+    // Módulos
+    $routes->get('modulos', 'ModulosController::index');
+    $routes->get('usuarios/(:num)/modulos', 'ModulosController::modulosDeUsuario/$1');
+    $routes->post('usuarios/(:num)/modulos', 'ModulosController::sincronizarModulos/$1');
 });

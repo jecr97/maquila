@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 
 const AuthContext = createContext();
 
@@ -24,8 +24,20 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  /** Verifica si el usuario tiene acceso a una ruta dada */
+  const tieneAcceso = useCallback((ruta) => {
+    if (!user) return false;
+    // Admin siempre tiene acceso total
+    if (user.rol === 'Admin') return true;
+    // Si no hay módulos cargados, denegar
+    if (!user.modulos || user.modulos.length === 0) return false;
+    // Dashboard siempre accesible
+    if (ruta === '/') return true;
+    return user.modulos.some((m) => m.Ruta === ruta);
+  }, [user]);
+
   return (
-    <AuthContext.Provider value={{ isAuth, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuth, user, login, logout, tieneAcceso }}>
       {children}
     </AuthContext.Provider>
   );

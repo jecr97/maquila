@@ -38,6 +38,7 @@ import {
   faSpinner,
   faCheckCircle,
   faExclamationCircle,
+  faCubes,
 } from '@fortawesome/free-solid-svg-icons';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -101,6 +102,13 @@ export default function Usuarios() {
   const [formErrors, setFormErrors] = useState({});
   const [dialogMsg, setDialogMsg] = useState('');
   const [toggleLoading, setToggleLoading] = useState(null);
+
+  // --- Módulos ---
+  const [modulosDialogOpen, setModulosDialogOpen] = useState(false);
+  const [modulosUser, setModulosUser] = useState(null);
+  const [allModulos, setAllModulos] = useState([]);
+  const [userModuloIds, setUserModuloIds] = useState([]);
+  const [savingModulos, setSavingModulos] = useState(false);
 
   // ---- Fetch ----
   const fetchUsuarios = useCallback(async () => {
@@ -214,6 +222,42 @@ export default function Usuarios() {
       setError('No se pudo cambiar el estado.');
       setToggleLoading(null);
     }
+  };
+
+  // ---- Módulos: abrir dialog ----
+  const openModulosDialog = async (u) => {
+    setModulosUser(u);
+    setModulosDialogOpen(true);
+    setSavingModulos(false);
+    try {
+      const [rAll, rUser] = await Promise.all([
+        fetch(`${API_URL}/api/modulos`).then(r => r.json()),
+        fetch(`${API_URL}/api/usuarios/${u.Id}/modulos`).then(r => r.json()),
+      ]);
+      if (rAll.success) setAllModulos(rAll.data);
+      if (rUser.success) setUserModuloIds(rUser.data.map(m => Number(m.Id)));
+    } catch { setError('Error cargando módulos.'); }
+  };
+
+  const toggleModulo = (id) => {
+    setUserModuloIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleSaveModulos = async () => {
+    if (!modulosUser) return;
+    setSavingModulos(true);
+    try {
+      const res = await fetch(`${API_URL}/api/usuarios/${modulosUser.Id}/modulos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modulos: userModuloIds }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setTimeout(() => setModulosDialogOpen(false), 600);
+      } else { setError(json.message || 'Error al guardar módulos.'); }
+    } catch { setError('Error de conexión.'); }
+    setSavingModulos(false);
   };
 
   // ---------------------------------------------------------------
@@ -521,6 +565,30 @@ export default function Usuarios() {
                     }}
                   >
                     Editar
+                  </Button>
+                </Tooltip>
+
+                <Tooltip title="Módulos">
+                  <Button
+                    size="small"
+                    onClick={() => openModulosDialog(u)}
+                    startIcon={<FontAwesomeIcon icon={faCubes} style={{ fontSize: 12 }} />}
+                    sx={{
+                      color: '#7c3aed',
+                      bgcolor: 'rgba(124, 58, 237, 0.08)',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      textTransform: 'capitalize',
+                      borderRadius: '8px',
+                      flex: 1,
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        bgcolor: 'rgba(124, 58, 237, 0.16)',
+                        transform: 'translateY(-2px)',
+                      },
+                    }}
+                  >
+                    Módulos
                   </Button>
                 </Tooltip>
 
@@ -926,6 +994,90 @@ export default function Usuarios() {
             }}
           >
             {saving ? 'Guardando...' : saveSuccess ? 'Guardado' : 'Guardar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ---- Dialog asignar módulos ---- */}
+      <Dialog
+        open={modulosDialogOpen}
+        onClose={() => setModulosDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '20px', boxShadow: '0 25px 50px rgba(0,0,0,0.15)' } }}
+      >
+        <DialogTitle
+          sx={{
+            background: 'linear-gradient(135deg, #5b21b6, #7c3aed)',
+            color: '#fff', fontWeight: 800, fontSize: '1.3rem',
+            display: 'flex', alignItems: 'center', gap: 1.5, pb: 3, pt: 3,
+          }}
+        >
+          <Box sx={{ width: 40, height: 40, borderRadius: '10px', bgcolor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <FontAwesomeIcon icon={faCubes} style={{ fontSize: 18 }} />
+          </Box>
+          Módulos — {modulosUser?.Nombre}
+          <IconButton onClick={() => setModulosDialogOpen(false)} sx={{ ml: 'auto', color: 'rgba(255,255,255,0.8)', '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.15)' } }}>
+            <FontAwesomeIcon icon={faTimes} />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, pb: 2 }}>
+          {modulosUser?.Rol === 'Admin' && (
+            <Alert severity="info" sx={{ mb: 2, borderRadius: '12px' }}>
+              Los usuarios Admin tienen acceso total a todos los módulos automáticamente.
+            </Alert>
+          )}
+          <Typography variant="body2" sx={{ mb: 2, color: muted }}>Selecciona los módulos a los que tendrá acceso este usuario:</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+            {allModulos.map(m => {
+              const checked = userModuloIds.includes(Number(m.Id));
+              return (
+                <Box
+                  key={m.Id}
+                  onClick={() => toggleModulo(Number(m.Id))}
+                  sx={{
+                    p: 1.5, borderRadius: '12px', cursor: 'pointer',
+                    border: '2px solid', transition: 'all 0.2s',
+                    borderColor: checked ? '#7c3aed' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
+                    bgcolor: checked ? 'rgba(124,58,237,0.08)' : 'transparent',
+                    '&:hover': { borderColor: '#7c3aed', bgcolor: 'rgba(124,58,237,0.04)' },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{
+                      width: 32, height: 32, borderRadius: '8px',
+                      bgcolor: checked ? '#7c3aed' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: checked ? '#fff' : muted, transition: 'all 0.2s',
+                    }}>
+                      {checked ? <FontAwesomeIcon icon={faCheckCircle} style={{ fontSize: 14 }} /> : <FontAwesomeIcon icon={faCubes} style={{ fontSize: 12 }} />}
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" fontWeight={700} color="text.primary">{m.Nombre}</Typography>
+                      <Typography variant="caption" color="text.secondary">{m.Ruta}</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
+          <Button onClick={() => setModulosDialogOpen(false)} variant="outlined" sx={{ borderRadius: '10px', fontWeight: 700, textTransform: 'capitalize', borderColor: '#e2e8f0', color: '#64748b' }}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSaveModulos}
+            variant="contained"
+            disabled={savingModulos}
+            startIcon={savingModulos ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faSave} />}
+            sx={{
+              background: 'linear-gradient(135deg, #5b21b6, #7c3aed)', borderRadius: '10px',
+              fontWeight: 700, textTransform: 'capitalize', px: 3,
+              '&:hover': { background: 'linear-gradient(135deg, #4c1d95, #5b21b6)' },
+            }}
+          >
+            {savingModulos ? 'Guardando...' : 'Guardar Módulos'}
           </Button>
         </DialogActions>
       </Dialog>

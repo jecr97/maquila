@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import {
   Box, Button, Card, CardContent, Grid, Paper, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField, Typography, Alert,
-  CircularProgress, FormControl, InputLabel, MenuItem, Select,
+  CircularProgress, FormControl, InputLabel, MenuItem, Select, useTheme,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -23,11 +23,15 @@ const statCards = [
 ];
 
 export default function Reportes() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
   const [desde, setDesde]         = useState('');
   const [hasta, setHasta]         = useState('');
+  const [dateErr, setDateErr]     = useState('');
   const [proveedores, setProveedores] = useState([]);
   const [idProveedor, setIdProveedor] = useState('');
 
@@ -52,6 +56,13 @@ export default function Reportes() {
   }, [desde, hasta, idProveedor]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const handleHastaChange = (val) => {
+    if (val && !desde) { setDateErr('Primero selecciona la fecha inicial.'); return; }
+    if (val && desde && val < desde) { setDateErr('La fecha final no puede ser anterior a la inicial.'); return; }
+    setDateErr('');
+    setHasta(val);
+  };
 
   const handleDownload = () => {
     if (!data) return;
@@ -107,8 +118,13 @@ export default function Reportes() {
 
       <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', mb: 3, p: 2 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <TextField label="Desde" type="date" size="small" value={desde} onChange={e => setDesde(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
-          <TextField label="Hasta" type="date" size="small" value={hasta} onChange={e => setHasta(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
+          <TextField label="Desde" type="date" size="small" value={desde}
+            onChange={e => { setDesde(e.target.value); setDateErr(''); if (hasta && e.target.value > hasta) setHasta(''); }}
+            InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
+          <TextField label="Hasta" type="date" size="small" value={hasta}
+            onChange={e => handleHastaChange(e.target.value)}
+            InputLabelProps={{ shrink: true }} sx={{ width: 170 }}
+            inputProps={{ min: desde || undefined }} />
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>Proveedor</InputLabel>
             <Select label="Proveedor" value={idProveedor} onChange={e => setIdProveedor(e.target.value)}>
@@ -116,8 +132,9 @@ export default function Reportes() {
               {proveedores.map(p => <MenuItem key={p.Id} value={p.Id}>{p.Nombre}</MenuItem>)}
             </Select>
           </FormControl>
-          {(desde || hasta || idProveedor) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setIdProveedor(''); }} sx={{ fontWeight: 600 }}>Limpiar</Button>}
+          {(desde || hasta || idProveedor) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setIdProveedor(''); setDateErr(''); }} sx={{ fontWeight: 600 }}>Limpiar</Button>}
         </Box>
+        {dateErr && <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2, py: 0.5 }}>{dateErr}</Alert>}
       </Paper>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}

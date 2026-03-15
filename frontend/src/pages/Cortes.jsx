@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControl, FormHelperText, IconButton, InputLabel, MenuItem, Paper, Select,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
-  Tooltip, Typography, Alert, CircularProgress, Tabs, Tab,
+  FormControl, FormHelperText, Grid, IconButton, InputLabel, MenuItem, Paper, Select,
+  TextField, Tooltip, Typography, Alert, CircularProgress, Tabs, Tab, useTheme,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -14,15 +13,20 @@ import {
 const API_URL = import.meta.env.VITE_API_URL;
 const EMPTY = { IdTipoPrenda: '', IdTipoCorte: '', IdProveedor: '', CantidadPiezas: '' };
 
-const statusColor = {
-  Registrado: { bg: 'rgba(21,101,192,0.1)', color: 'primary.main', border: 'rgba(21,101,192,0.3)' },
-  Comenzado:  { bg: 'rgba(180,83,9,0.1)', color: '#b45309', border: 'rgba(180,83,9,0.3)' },
-  Finalizado: { bg: 'rgba(46,125,50,0.1)', color: '#2e7d32', border: 'rgba(46,125,50,0.3)' },
-};
-
 const fmt = (v) => Number(v).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
 export default function Cortes() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const surface = theme.palette.background.paper;
+  const cardBg = isDark ? '#0B1724' : surface;
+  const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+
+  const statusConfig = {
+    Registrado: { bg: isDark ? 'rgba(21,101,192,0.15)' : 'rgba(21,101,192,0.08)', color: isDark ? '#42a5f5' : '#1565c0', border: isDark ? 'rgba(21,101,192,0.4)' : 'rgba(21,101,192,0.25)', accent: '#1565c0' },
+    Comenzado:  { bg: isDark ? 'rgba(180,83,9,0.15)' : 'rgba(180,83,9,0.08)',     color: isDark ? '#fbbf24' : '#b45309',   border: isDark ? 'rgba(180,83,9,0.4)' : 'rgba(180,83,9,0.25)',   accent: '#b45309' },
+    Finalizado: { bg: isDark ? 'rgba(46,125,50,0.15)' : 'rgba(46,125,50,0.08)',   color: isDark ? '#4ade80' : '#2e7d32',   border: isDark ? 'rgba(46,125,50,0.4)' : 'rgba(46,125,50,0.25)', accent: '#2e7d32' },
+  };
   const [rows, setRows]           = useState([]);
   const [prendas, setPrendas]     = useState([]);
   const [cortes, setCortes]       = useState([]);
@@ -35,6 +39,7 @@ export default function Cortes() {
   const [tab, setTab]             = useState(0);
   const [desde, setDesde]         = useState('');
   const [hasta, setHasta]         = useState('');
+  const [dateErr, setDateErr]     = useState('');
   const [open, setOpen]           = useState(false);
   const [isNew, setIsNew]         = useState(false);
   const [editId, setEditId]       = useState(null);
@@ -77,6 +82,13 @@ export default function Cortes() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const handleHastaChange = (val) => {
+    if (val && !desde) { setDateErr('Primero selecciona la fecha inicial.'); return; }
+    if (val && desde && val < desde) { setDateErr('La fecha final no puede ser anterior a la inicial.'); return; }
+    setDateErr('');
+    setHasta(val);
+  };
+
   const openNew = () => { setIsNew(true); setEditId(null); setForm(EMPTY); setFormErr({}); setDlgMsg(''); setOpen(true); };
   const openEdit = (r) => {
     if (r.Status === 'Finalizado') return;
@@ -84,6 +96,11 @@ export default function Cortes() {
     setForm({ IdTipoPrenda: r.IdTipoPrenda, IdTipoCorte: r.IdTipoCorte, IdProveedor: r.IdProveedor || '', CantidadPiezas: r.CantidadPiezas });
     setFormErr({}); setDlgMsg(''); setOpen(true);
   };
+
+  // Only show cortes that have a configured price for the selected prenda
+  const filteredCortes = form.IdTipoPrenda
+    ? cortes.filter(c => precios.some(p => String(p.IdTipoPrenda) === String(form.IdTipoPrenda) && String(p.IdTipoCorte) === String(c.Id)))
+    : [];
 
   const sinPrecio = !!(form.IdTipoPrenda && form.IdTipoCorte &&
     !precios.some(p => p.IdTipoPrenda == form.IdTipoPrenda && p.IdTipoCorte == form.IdTipoCorte));
@@ -139,13 +156,14 @@ export default function Cortes() {
   };
 
   const confirmLabels = {
-    delete: { title: '¿Eliminar corte?', color: '#c62828', btn: 'Eliminar' },
-    comenzar: { title: '¿Comenzar producción?', color: '#b45309', btn: 'Comenzar' },
-    finalizar: { title: '¿Finalizar corte?', color: '#2e7d32', btn: 'Finalizar' },
+    delete:    { title: '¿Eliminar corte?',       color: '#c62828', btn: 'Eliminar',  msg: 'Esta acción no se puede deshacer.' },
+    comenzar:  { title: '¿Comenzar producción?',  color: '#b45309', btn: 'Comenzar',  msg: 'El corte pasará a estado "En Producción".' },
+    finalizar: { title: '¿Finalizar corte?',       color: '#2e7d32', btn: 'Finalizar', msg: 'Se calcularán las piezas producidas y el monto total.' },
   };
 
   return (
     <Box>
+      {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{ width: 48, height: 48, borderRadius: '12px', background: 'linear-gradient(135deg, #1565c0, #42a5f5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -162,16 +180,21 @@ export default function Cortes() {
         </Button>
       </Box>
 
+      {/* Filters */}
       <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', mb: 2, p: 2 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 1.5 }} TabIndicatorProps={{ sx: { bgcolor: 'primary.main' } }}>
-          <Tab label="Todos" sx={{ fontWeight: 600, textTransform: 'none' }} />
-          <Tab label="Registrados" sx={{ fontWeight: 600, textTransform: 'none' }} />
-          <Tab label="En Producción" sx={{ fontWeight: 600, textTransform: 'none' }} />
-          <Tab label="Finalizados" sx={{ fontWeight: 600, textTransform: 'none' }} />
+          {['Todos', 'Registrados', 'En Producción', 'Finalizados'].map((l, i) => (
+            <Tab key={i} label={l} sx={{ fontWeight: 600, textTransform: 'none' }} />
+          ))}
         </Tabs>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <TextField label="Desde" type="date" size="small" value={desde} onChange={e => setDesde(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
-          <TextField label="Hasta" type="date" size="small" value={hasta} onChange={e => setHasta(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
+          <TextField label="Desde" type="date" size="small" value={desde}
+            onChange={e => { setDesde(e.target.value); setDateErr(''); if (hasta && e.target.value > hasta) setHasta(''); }}
+            InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
+          <TextField label="Hasta" type="date" size="small" value={hasta}
+            onChange={e => handleHastaChange(e.target.value)}
+            InputLabelProps={{ shrink: true }} sx={{ width: 170 }}
+            inputProps={{ min: desde || undefined }} />
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>Proveedor</InputLabel>
             <Select label="Proveedor" value={idProveedor} onChange={e => setIdProveedor(e.target.value)}>
@@ -179,82 +202,124 @@ export default function Cortes() {
               {proveedores.map(p => <MenuItem key={p.Id} value={p.Id}>{p.Nombre}</MenuItem>)}
             </Select>
           </FormControl>
-          {(desde || hasta || idProveedor) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setIdProveedor(''); }} sx={{ fontWeight: 600 }}>Limpiar</Button>}
+          {(desde || hasta || idProveedor) && (
+            <Button size="small" onClick={() => { setDesde(''); setHasta(''); setIdProveedor(''); setDateErr(''); }} sx={{ fontWeight: 600 }}>
+              Limpiar
+            </Button>
+          )}
         </Box>
+        {dateErr && <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2, py: 0.5 }}>{dateErr}</Alert>}
       </Paper>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress sx={{ color: 'primary.main' }} /></Box>
+      ) : rows.length === 0 ? (
+        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '16px', p: 6, textAlign: 'center' }}>
+          <Box sx={{ width: 64, height: 64, borderRadius: '16px', background: 'linear-gradient(135deg, #1565c0, #42a5f5)', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2 }}>
+            <FontAwesomeIcon icon={faLayerGroup} style={{ color: '#fff', fontSize: 28 }} />
+          </Box>
+          <Typography fontWeight={700} mb={0.5}>Sin cortes registrados</Typography>
+          <Typography variant="body2" color="text.secondary" mb={2}>Crea el primer corte de producción.</Typography>
+          <Button variant="contained" startIcon={<FontAwesomeIcon icon={faPlus} />} onClick={openNew}
+            sx={{ background: 'linear-gradient(135deg, #1565c0, #42a5f5)', borderRadius: '8px', fontWeight: 600 }}>
+            Nuevo Corte
+          </Button>
+        </Paper>
       ) : (
-        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '14px', overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 900 }}>
-            <TableHead>
-              <TableRow sx={{ background: 'linear-gradient(135deg, #1565c0, #42a5f5)' }}>
-                {['Folio', 'Prenda', 'Corte', 'Proveedor', 'Piezas', 'P. Unit.', 'Estado', 'Fecha', 'Acciones'].map(h => (
-                  <TableCell key={h} sx={{ color: '#fff', fontWeight: 700, fontSize: '0.82rem', py: 1.8 }}>{h}</TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.length === 0 ? (
-                <TableRow><TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>Sin cortes registrados.</TableCell></TableRow>
-              ) : rows.map((r) => {
-                const sc = statusColor[r.Status] || statusColor.Registrado;
-                return (
-                  <TableRow key={r.Id} sx={{ '&:hover': { bgcolor: 'rgba(21,101,192,0.03)' } }}>
-                    <TableCell sx={{ fontWeight: 700, color: 'primary.main', fontFamily: 'monospace' }}>{r.Folio || '—'}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{r.NombrePrenda || '—'}</TableCell>
-                    <TableCell>{r.NombreCorte || '—'}</TableCell>
-                    <TableCell sx={{ color: 'text.secondary', fontSize: '0.82rem' }}>{r.NombreProveedor || '—'}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{r.CantidadPiezas}</TableCell>
-                    <TableCell>{fmt(r.PrecioUnitario)}</TableCell>
-                    <TableCell>
-                      <Chip label={r.Status} size="small" sx={{ fontWeight: 600, fontSize: '0.72rem', bgcolor: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }} />
-                    </TableCell>
-                    <TableCell sx={{ color: 'text.secondary', fontSize: '0.82rem' }}>{r.CreatedAt ? new Date(r.CreatedAt).toLocaleDateString('es-MX') : '—'}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 0.6 }}>
-                        <Tooltip title="Ver detalle">
-                          <IconButton size="small" onClick={() => openDetail(r.Id)} sx={{ color: 'primary.main', bgcolor: 'rgba(21,101,192,0.06)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(21,101,192,0.14)' } }}>
-                            <FontAwesomeIcon icon={faEye} style={{ fontSize: 13 }} />
+        <Grid container spacing={2.5}>
+          {rows.map((r) => {
+            const sc = statusConfig[r.Status] || statusConfig.Registrado;
+            return (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={r.Id}>
+                <Paper elevation={0} sx={{
+                  borderRadius: '16px',
+                  background: cardBg,
+                  border: `1px solid ${cardBorder}`,
+                  borderTop: `4px solid ${sc.accent}`,
+                  transition: 'all 0.25s ease',
+                  '&:hover': { transform: 'translateY(-5px)', boxShadow: isDark ? '0 16px 40px rgba(0,0,0,0.45)' : '0 16px 40px rgba(21,101,192,0.1)' },
+                  overflow: 'hidden',
+                }}>
+                  <Box sx={{ p: 2.5 }}>
+                    {/* Folio + status */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Typography fontWeight={700} fontFamily="monospace" fontSize="0.82rem"
+                        sx={{ color: sc.color, bgcolor: sc.bg, px: 1.2, py: 0.4, borderRadius: '6px', border: `1px solid ${sc.border}` }}>
+                        {r.Folio || '—'}
+                      </Typography>
+                      <Chip label={r.Status} size="small" sx={{ fontWeight: 600, fontSize: '0.68rem', height: 22, bgcolor: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }} />
+                    </Box>
+
+                    {/* Prenda + Corte */}
+                    <Typography fontWeight={700} fontSize="0.95rem" sx={{ lineHeight: 1.3, mb: 0.3 }}>{r.NombrePrenda || '—'}</Typography>
+                    <Typography variant="body2" color="text.secondary" mb={r.NombreProveedor ? 0.4 : 1.5}>{r.NombreCorte || '—'}</Typography>
+                    {r.NombreProveedor && (
+                      <Typography variant="caption" color="text.secondary" display="block" mb={1.5} sx={{ opacity: 0.7 }}>{r.NombreProveedor}</Typography>
+                    )}
+
+                    {/* Stats */}
+                    <Box sx={{ display: 'flex', gap: 2, mb: 1.5, alignItems: 'flex-end' }}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" display="block">Piezas</Typography>
+                        <Typography fontWeight={700} fontSize="0.92rem">{r.CantidadPiezas}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" display="block">P. Unit.</Typography>
+                        <Typography fontWeight={700} fontSize="0.92rem" color="primary.main">{fmt(r.PrecioUnitario)}</Typography>
+                      </Box>
+                      <Box sx={{ ml: 'auto', textAlign: 'right' }}>
+                        <Typography variant="caption" color="text.secondary" display="block">Fecha</Typography>
+                        <Typography variant="caption" fontWeight={600}>{r.CreatedAt ? new Date(r.CreatedAt).toLocaleDateString('es-MX') : '—'}</Typography>
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ height: '1px', bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', mb: 1.5 }} />
+
+                    {/* Actions */}
+                    <Box sx={{ display: 'flex', gap: 0.8, justifyContent: 'flex-end' }}>
+                      <Tooltip title="Ver detalle">
+                        <IconButton size="small" onClick={() => openDetail(r.Id)} sx={{ color: '#1565c0', bgcolor: 'rgba(21,101,192,0.07)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(21,101,192,0.15)' } }}>
+                          <FontAwesomeIcon icon={faEye} style={{ fontSize: 13 }} />
+                        </IconButton>
+                      </Tooltip>
+                      {r.Status === 'Registrado' && (<>
+                        <Tooltip title="Editar">
+                          <IconButton size="small" onClick={() => openEdit(r)} sx={{ color: '#1565c0', bgcolor: 'rgba(21,101,192,0.07)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(21,101,192,0.15)' } }}>
+                            <FontAwesomeIcon icon={faPenToSquare} style={{ fontSize: 13 }} />
                           </IconButton>
                         </Tooltip>
-                        {r.Status === 'Registrado' && (<>
-                          <Tooltip title="Editar">
-                            <IconButton size="small" onClick={() => openEdit(r)} sx={{ color: 'primary.main', bgcolor: 'rgba(21,101,192,0.06)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(21,101,192,0.14)' } }}>
-                              <FontAwesomeIcon icon={faPenToSquare} style={{ fontSize: 13 }} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Comenzar producción">
-                            <IconButton size="small" onClick={() => { setConfirmId(r.Id); setConfirmAction('comenzar'); }} sx={{ color: '#b45309', bgcolor: 'rgba(180,83,9,0.07)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(180,83,9,0.15)' } }}>
-                              <FontAwesomeIcon icon={faPlay} style={{ fontSize: 12 }} />
-                            </IconButton>
-                          </Tooltip>
-                        </>)}
-                        {r.Status === 'Comenzado' && (
-                          <Tooltip title="Finalizar">
-                            <IconButton size="small" onClick={() => { setConfirmId(r.Id); setConfirmAction('finalizar'); }} sx={{ color: '#2e7d32', bgcolor: 'rgba(46,125,50,0.07)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(46,125,50,0.15)' } }}>
-                              <FontAwesomeIcon icon={faFlagCheckered} style={{ fontSize: 13 }} />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {r.Status !== 'Finalizado' && (
-                          <Tooltip title="Eliminar">
-                            <IconButton size="small" onClick={() => { setConfirmId(r.Id); setConfirmAction('delete'); }} sx={{ color: '#c62828', bgcolor: 'rgba(198,40,40,0.06)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(198,40,40,0.14)' } }}>
-                              <FontAwesomeIcon icon={faTrash} style={{ fontSize: 13 }} />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                        <Tooltip title="Comenzar producción">
+                          <IconButton size="small" onClick={() => { setConfirmId(r.Id); setConfirmAction('comenzar'); }}
+                            sx={{ color: '#b45309', bgcolor: 'rgba(180,83,9,0.07)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(180,83,9,0.15)' } }}>
+                            <FontAwesomeIcon icon={faPlay} style={{ fontSize: 12 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </>)}
+                      {r.Status === 'Comenzado' && (
+                        <Tooltip title="Finalizar corte">
+                          <IconButton size="small" onClick={() => { setConfirmId(r.Id); setConfirmAction('finalizar'); }}
+                            sx={{ color: '#2e7d32', bgcolor: 'rgba(46,125,50,0.07)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(46,125,50,0.15)' } }}>
+                            <FontAwesomeIcon icon={faFlagCheckered} style={{ fontSize: 13 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {r.Status !== 'Finalizado' && (
+                        <Tooltip title="Eliminar">
+                          <IconButton size="small" onClick={() => { setConfirmId(r.Id); setConfirmAction('delete'); }}
+                            sx={{ color: '#c62828', bgcolor: 'rgba(198,40,40,0.06)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(198,40,40,0.14)' } }}>
+                            <FontAwesomeIcon icon={faTrash} style={{ fontSize: 13 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
+                  </Box>
+                </Paper>
+              </Grid>
+            );
+          })}
+        </Grid>
       )}
 
       {/* Dialog Nuevo/Editar */}
@@ -270,21 +335,21 @@ export default function Cortes() {
           {dlgMsg && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{dlgMsg}</Alert>}
           <FormControl fullWidth sx={{ mb: 2, mt: 2 }} error={!!formErr.IdTipoPrenda}>
             <InputLabel>Tipo de Prenda</InputLabel>
-            <Select label="Tipo de Prenda" value={form.IdTipoPrenda} onChange={e => { setForm(p => ({ ...p, IdTipoPrenda: e.target.value })); setFormErr(p => ({ ...p, IdTipoPrenda: '', combo: '' })); }}>
+            <Select label="Tipo de Prenda" value={form.IdTipoPrenda} onChange={e => { setForm(p => ({ ...p, IdTipoPrenda: e.target.value, IdTipoCorte: '' })); setFormErr(p => ({ ...p, IdTipoPrenda: '', combo: '' })); }}>
               {prendas.map(p => <MenuItem key={p.Id} value={p.Id}>{p.Nombre}</MenuItem>)}
             </Select>
             {formErr.IdTipoPrenda && <FormHelperText>{formErr.IdTipoPrenda}</FormHelperText>}
           </FormControl>
-          <FormControl fullWidth sx={{ mb: 2 }} error={!!formErr.IdTipoCorte}>
+          <FormControl fullWidth sx={{ mb: 2 }} error={!!formErr.IdTipoCorte} disabled={!form.IdTipoPrenda || filteredCortes.length === 0}>
             <InputLabel>Tipo de Corte</InputLabel>
             <Select label="Tipo de Corte" value={form.IdTipoCorte} onChange={e => { setForm(p => ({ ...p, IdTipoCorte: e.target.value })); setFormErr(p => ({ ...p, IdTipoCorte: '', combo: '' })); }}>
-              {cortes.map(c => <MenuItem key={c.Id} value={c.Id}>{c.Nombre}</MenuItem>)}
+              {filteredCortes.map(c => <MenuItem key={c.Id} value={c.Id}>{c.Nombre}</MenuItem>)}
             </Select>
             {formErr.IdTipoCorte && <FormHelperText>{formErr.IdTipoCorte}</FormHelperText>}
+            {form.IdTipoPrenda && filteredCortes.length === 0 && (
+              <FormHelperText sx={{ color: 'warning.main' }}>Sin precios configurados para esta prenda. Ve a Precios Maquila.</FormHelperText>
+            )}
           </FormControl>
-          {sinPrecio && (
-            <Alert severity="warning" sx={{ mb: 2 }}>Esta combinación no tiene precio configurado en Precios Maquila. Configúralo antes de guardar.</Alert>
-          )}
           {formErr.combo && <Alert severity="error" sx={{ mb: 2 }}>{formErr.combo}</Alert>}
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel>Proveedor (opcional)</InputLabel>
@@ -392,9 +457,7 @@ export default function Cortes() {
         </DialogTitle>
         <DialogContent>
           <Typography color="text.secondary">
-            {confirmAction === 'delete' && 'Esta acción no se puede deshacer.'}
-            {confirmAction === 'comenzar' && 'El corte pasará a estado "En Producción".'}
-            {confirmAction === 'finalizar' && 'Se calcularán las piezas producidas y monto total. Las piezas faltantes se descontarán.'}
+            {confirmAction ? confirmLabels[confirmAction]?.msg : ''}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>

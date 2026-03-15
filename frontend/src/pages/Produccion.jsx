@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Box, Button, Chip, Card, CardContent, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, Paper, TextField, Tooltip, Typography, Alert,
-  CircularProgress, Tabs, Tab,
+  CircularProgress, Tabs, Tab, useTheme,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -18,12 +18,24 @@ const statusColor = {
 const fmt = (v) => Number(v).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
 export default function Produccion() {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const surface = theme.palette.background.paper;
+  const cardBg = isDark ? '#0B1724' : surface;
+
+  const statusColor = {
+    Registrado: { bg: isDark ? 'rgba(21,101,192,0.15)' : 'rgba(21,101,192,0.08)', color: isDark ? '#42a5f5' : '#1565c0', border: isDark ? 'rgba(21,101,192,0.4)' : 'rgba(21,101,192,0.25)', accent: '#1565c0' },
+    Comenzado:  { bg: isDark ? 'rgba(180,83,9,0.15)' : 'rgba(180,83,9,0.08)',     color: isDark ? '#fbbf24' : '#b45309',   border: isDark ? 'rgba(180,83,9,0.4)' : 'rgba(180,83,9,0.25)',   accent: '#b45309' },
+    Finalizado: { bg: isDark ? 'rgba(46,125,50,0.15)' : 'rgba(46,125,50,0.08)',   color: isDark ? '#4ade80' : '#2e7d32',   border: isDark ? 'rgba(46,125,50,0.4)' : 'rgba(46,125,50,0.25)', accent: '#2e7d32' },
+  };
+
   const [rows, setRows]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
-  const [tab, setTab]         = useState(2); // default: Comenzado
+  const [tab, setTab]         = useState(0); // default: Todos
   const [desde, setDesde]     = useState('');
   const [hasta, setHasta]     = useState('');
+  const [dateErr, setDateErr] = useState('');
   const [detail, setDetail]   = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [avanceOpen, setAvanceOpen] = useState(false);
@@ -51,6 +63,13 @@ export default function Produccion() {
   }, [tab, desde, hasta]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const handleHastaChange = (val) => {
+    if (val && !desde) { setDateErr('Primero selecciona la fecha inicial.'); return; }
+    if (val && desde && val < desde) { setDateErr('La fecha final no puede ser anterior a la inicial.'); return; }
+    setDateErr('');
+    setHasta(val);
+  };
 
   const openDetail = async (id) => {
     try {
@@ -104,10 +123,16 @@ export default function Produccion() {
           <Tab label="Finalizados" sx={{ fontWeight: 600, textTransform: 'none' }} />
         </Tabs>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <TextField label="Desde" type="date" size="small" value={desde} onChange={e => setDesde(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
-          <TextField label="Hasta" type="date" size="small" value={hasta} onChange={e => setHasta(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
-          {(desde || hasta) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); }} sx={{ fontWeight: 600 }}>Limpiar</Button>}
+          <TextField label="Desde" type="date" size="small" value={desde}
+            onChange={e => { setDesde(e.target.value); setDateErr(''); if (hasta && e.target.value > hasta) setHasta(''); }}
+            InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
+          <TextField label="Hasta" type="date" size="small" value={hasta}
+            onChange={e => handleHastaChange(e.target.value)}
+            InputLabelProps={{ shrink: true }} sx={{ width: 170 }}
+            inputProps={{ min: desde || undefined }} />
+          {(desde || hasta) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setDateErr(''); }} sx={{ fontWeight: 600 }}>Limpiar</Button>}
         </Box>
+        {dateErr && <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2, py: 0.5 }}>{dateErr}</Alert>}
       </Paper>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
@@ -115,35 +140,42 @@ export default function Produccion() {
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress sx={{ color: 'primary.main' }} /></Box>
       ) : rows.length === 0 ? (
-        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '14px', p: 6, textAlign: 'center' }}>
-          <Typography color="text.secondary">Sin cortes en este estado.</Typography>
+        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '16px', p: 6, textAlign: 'center' }}>
+          <Box sx={{ width: 56, height: 56, borderRadius: '14px', background: 'linear-gradient(135deg, #1565c0, #42a5f5)', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2 }}>
+            <FontAwesomeIcon icon={faIndustry} style={{ color: '#fff', fontSize: 22 }} />
+          </Box>
+          <Typography fontWeight={600} color="text.secondary">Sin cortes en este estado.</Typography>
         </Paper>
       ) : (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 2.5 }}>
           {rows.map(r => {
             const sc = statusColor[r.Status] || statusColor.Registrado;
             return (
-              <Card key={r.Id} elevation={0} sx={{ borderRadius: '14px', border: `1px solid ${sc.border}`, '&:hover': { boxShadow: `0 4px 20px ${sc.border}` }, transition: '0.2s' }}>
+              <Card key={r.Id} elevation={0} sx={{ borderRadius: '16px', background: cardBg, border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`, borderTop: `4px solid ${sc.accent}`, transition: 'all 0.25s ease', '&:hover': { transform: 'translateY(-4px)', boxShadow: isDark ? '0 12px 32px rgba(0,0,0,0.45)' : '0 12px 32px rgba(21,101,192,0.1)' } }}>
                 <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                    <Typography fontWeight={700} fontFamily="monospace" color="primary.main">{r.Folio}</Typography>
-                    <Chip label={r.Status} size="small" sx={{ fontWeight: 600, fontSize: '0.7rem', bgcolor: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }} />
+                    <Typography fontWeight={700} fontFamily="monospace" fontSize="0.82rem"
+                      sx={{ color: sc.color, bgcolor: sc.bg, px: 1.2, py: 0.4, borderRadius: '6px', border: `1px solid ${sc.border}` }}>
+                      {r.Folio}
+                    </Typography>
+                    <Chip label={r.Status} size="small" sx={{ fontWeight: 600, fontSize: '0.68rem', height: 22, bgcolor: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }} />
                   </Box>
-                  <Typography fontWeight={600} mb={0.5}>{r.NombrePrenda || '—'}</Typography>
-                  <Typography variant="body2" color="text.secondary" mb={1}>{r.NombreCorte || '—'}</Typography>
-                  <Box sx={{ display: 'flex', gap: 3, mb: 1.5 }}>
-                    <Box><Typography variant="caption" color="text.secondary">Piezas</Typography><Typography fontWeight={600}>{r.CantidadPiezas}</Typography></Box>
-                    <Box><Typography variant="caption" color="text.secondary">P. Unit.</Typography><Typography fontWeight={600}>{fmt(r.PrecioUnitario)}</Typography></Box>
+                  <Typography fontWeight={700} fontSize="0.95rem" mb={0.3}>{r.NombrePrenda || '—'}</Typography>
+                  <Typography variant="body2" color="text.secondary" mb={1.5}>{r.NombreCorte || '—'}</Typography>
+                  <Box sx={{ display: 'flex', gap: 2.5, mb: 1.5 }}>
+                    <Box><Typography variant="caption" color="text.secondary" display="block">Piezas</Typography><Typography fontWeight={700}>{r.CantidadPiezas}</Typography></Box>
+                    <Box><Typography variant="caption" color="text.secondary" display="block">P. Unit.</Typography><Typography fontWeight={700} color="primary.main">{fmt(r.PrecioUnitario)}</Typography></Box>
                   </Box>
+                  <Box sx={{ height: '1px', bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', mb: 1.5 }} />
                   <Box sx={{ display: 'flex', gap: 0.8, justifyContent: 'flex-end' }}>
                     <Tooltip title="Ver detalle">
-                      <IconButton size="small" onClick={() => openDetail(r.Id)} sx={{ color: 'primary.main', bgcolor: 'rgba(21,101,192,0.06)', borderRadius: '7px' }}>
+                      <IconButton size="small" onClick={() => openDetail(r.Id)} sx={{ color: '#1565c0', bgcolor: 'rgba(21,101,192,0.07)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(21,101,192,0.15)' } }}>
                         <FontAwesomeIcon icon={faEye} style={{ fontSize: 13 }} />
                       </IconButton>
                     </Tooltip>
                     {r.Status === 'Comenzado' && (
                       <Tooltip title="Registrar avance">
-                        <IconButton size="small" onClick={() => openAvance(r)} sx={{ color: '#b45309', bgcolor: 'rgba(180,83,9,0.07)', borderRadius: '7px' }}>
+                        <IconButton size="small" onClick={() => openAvance(r)} sx={{ color: '#b45309', bgcolor: 'rgba(180,83,9,0.07)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(180,83,9,0.15)' } }}>
                           <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} />
                         </IconButton>
                       </Tooltip>

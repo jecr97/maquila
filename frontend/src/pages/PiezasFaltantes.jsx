@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-    FormControl, FormControlLabel, IconButton, InputLabel, MenuItem, Paper, Select, Table,
-    TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
-    Tooltip, Typography, Alert, CircularProgress,
+    FormControl, FormControlLabel, Grid, IconButton, InputLabel, MenuItem, Paper, Select,
+    TextField, Tooltip, Typography, Alert, CircularProgress, useTheme,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -13,6 +12,12 @@ import {
 const API_URL = import.meta.env.VITE_API_URL;
 
 export default function PiezasFaltantes() {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const surface = theme.palette.background.paper;
+    const cardBg = isDark ? '#0B1724' : surface;
+    const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+
     const [rows, setRows] = useState([]);
     const [cortesActivos, setCortesActivos] = useState([]);
     const [proveedores, setProveedores] = useState([]);
@@ -21,6 +26,7 @@ export default function PiezasFaltantes() {
     const [error, setError] = useState('');
     const [desde, setDesde] = useState('');
     const [hasta, setHasta] = useState('');
+    const [dateErr, setDateErr] = useState('');
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({ IdCorte: '', CantidadFaltante: '', Motivo: '', AplicaDescuento: true });
@@ -54,6 +60,13 @@ export default function PiezasFaltantes() {
     }, [desde, hasta, idProveedor]);
 
     useEffect(() => { loadData(); }, [loadData]);
+
+    const handleHastaChange = (val) => {
+        if (val && !desde) { setDateErr('Primero selecciona la fecha inicial.'); return; }
+        if (val && desde && val < desde) { setDateErr('La fecha final no puede ser anterior a la inicial.'); return; }
+        setDateErr('');
+        setHasta(val);
+    };
 
     const loadCortes = async () => {
         try {
@@ -121,8 +134,13 @@ export default function PiezasFaltantes() {
 
             <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', mb: 2, p: 2 }}>
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <TextField label="Desde" type="date" size="small" value={desde} onChange={e => setDesde(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
-                    <TextField label="Hasta" type="date" size="small" value={hasta} onChange={e => setHasta(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
+                    <TextField label="Desde" type="date" size="small" value={desde}
+                        onChange={e => { setDesde(e.target.value); setDateErr(''); if (hasta && e.target.value > hasta) setHasta(''); }}
+                        InputLabelProps={{ shrink: true }} sx={{ width: 170 }} />
+                    <TextField label="Hasta" type="date" size="small" value={hasta}
+                        onChange={e => handleHastaChange(e.target.value)}
+                        InputLabelProps={{ shrink: true }} sx={{ width: 170 }}
+                        inputProps={{ min: desde || undefined }} />
                     <FormControl size="small" sx={{ minWidth: 200 }}>
                         <InputLabel>Proveedor</InputLabel>
                         <Select label="Proveedor" value={idProveedor} onChange={e => setIdProveedor(e.target.value)}>
@@ -130,55 +148,91 @@ export default function PiezasFaltantes() {
                             {proveedores.map(p => <MenuItem key={p.Id} value={p.Id}>{p.Nombre}</MenuItem>)}
                         </Select>
                     </FormControl>
-                    {(desde || hasta || idProveedor) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setIdProveedor(''); }} sx={{ fontWeight: 600 }}>Limpiar</Button>}
+                    {(desde || hasta || idProveedor) && <Button size="small" onClick={() => { setDesde(''); setHasta(''); setIdProveedor(''); setDateErr(''); }} sx={{ fontWeight: 600 }}>Limpiar</Button>}
                 </Box>
+                {dateErr && <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2, py: 0.5 }}>{dateErr}</Alert>}
             </Paper>
 
             {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
 
             {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress sx={{ color: 'primary.main' }} /></Box>
+            ) : rows.length === 0 ? (
+                <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '16px', p: 6, textAlign: 'center' }}>
+                    <Box sx={{ width: 60, height: 60, borderRadius: '14px', background: 'linear-gradient(135deg, #b91c1c, #ef4444)', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2 }}>
+                        <FontAwesomeIcon icon={faTriangleExclamation} style={{ color: '#fff', fontSize: 24 }} />
+                    </Box>
+                    <Typography fontWeight={700} mb={0.5}>Sin piezas faltantes</Typography>
+                    <Typography variant="body2" color="text.secondary">No se han registrado faltantes en el periodo seleccionado.</Typography>
+                </Paper>
             ) : (
-                <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '14px', overflowX: 'auto' }}>
-                    <Table sx={{ minWidth: 900 }}>
-                        <TableHead>
-                            <TableRow sx={{ background: 'linear-gradient(135deg, #1565c0, #42a5f5)' }}>
-                                {['Folio Corte', 'Prenda', 'Corte', 'Proveedor', 'Cant. Faltante', 'Descuento', 'Motivo', 'Fecha', 'Acciones'].map(h => (
-                                    <TableCell key={h} sx={{ color: '#fff', fontWeight: 700, fontSize: '0.82rem', py: 1.8 }}>{h}</TableCell>
-                                ))}
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {rows.length === 0 ? (
-                                <TableRow><TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>Sin piezas faltantes registradas.</TableCell></TableRow>
-                            ) : rows.map((r) => (
-                                <TableRow key={r.Id} sx={{ '&:hover': { bgcolor: 'rgba(21,101,192,0.03)' } }}>
-                                    <TableCell sx={{ fontWeight: 700, color: 'primary.main', fontFamily: 'monospace' }}>{r.Folio || '—'}</TableCell>
-                                    <TableCell sx={{ fontWeight: 600 }}>{r.NombrePrenda || '—'}</TableCell>
-                                    <TableCell>{r.NombreCorte || '—'}</TableCell>
-                                    <TableCell>{r.NombreProveedor || '—'}</TableCell>
-                                    <TableCell>
-                                        <Chip label={r.CantidadFaltante} size="small" sx={{ fontWeight: 700, bgcolor: 'rgba(198,40,40,0.1)', color: '#c62828', border: '1px solid rgba(198,40,40,0.25)' }} />
-                                    </TableCell>
-                                    <TableCell>
+                <Grid container spacing={2.5}>
+                    {rows.map((r) => (
+                        <Grid item xs={12} sm={6} md={4} lg={3} key={r.Id}>
+                            <Paper elevation={0} sx={{
+                                borderRadius: '16px',
+                                background: cardBg,
+                                border: `1px solid ${cardBorder}`,
+                                borderTop: '4px solid #c62828',
+                                transition: 'all 0.25s ease',
+                                '&:hover': { transform: 'translateY(-4px)', boxShadow: isDark ? '0 12px 32px rgba(0,0,0,0.45)' : '0 12px 32px rgba(198,40,40,0.1)' },
+                                overflow: 'hidden',
+                            }}>
+                                <Box sx={{ p: 2.5 }}>
+                                    {/* Folio + Descuento chip */}
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                                        <Typography fontWeight={700} fontFamily="monospace" fontSize="0.82rem"
+                                            sx={{ color: '#c62828', bgcolor: isDark ? 'rgba(198,40,40,0.15)' : 'rgba(198,40,40,0.08)', px: 1.2, py: 0.4, borderRadius: '6px', border: '1px solid rgba(198,40,40,0.3)' }}>
+                                            {r.Folio || '—'}
+                                        </Typography>
                                         <Chip label={r.AplicaDescuento == 1 ? 'Con desc.' : 'Sin desc.'} size="small"
-                                            sx={{ fontWeight: 600, bgcolor: r.AplicaDescuento == 1 ? 'rgba(21,101,192,0.1)' : 'rgba(100,100,100,0.1)', color: r.AplicaDescuento == 1 ? '#1565c0' : '#616161', border: `1px solid ${r.AplicaDescuento == 1 ? 'rgba(21,101,192,0.3)' : 'rgba(100,100,100,0.25)'}` }} />
-                                    </TableCell>
-                                    <TableCell sx={{ color: 'text.secondary', maxWidth: 200 }}>{r.Motivo || '—'}</TableCell>
-                                    <TableCell sx={{ color: 'text.secondary', fontSize: '0.82rem' }}>{r.CreatedAt ? new Date(r.CreatedAt).toLocaleDateString('es-MX') : '—'}</TableCell>
-                                    <TableCell>
+                                            sx={{ fontWeight: 600, fontSize: '0.68rem', height: 22,
+                                                bgcolor: r.AplicaDescuento == 1 ? (isDark ? 'rgba(21,101,192,0.2)' : 'rgba(21,101,192,0.1)') : (isDark ? 'rgba(100,100,100,0.2)' : 'rgba(0,0,0,0.05)'),
+                                                color: r.AplicaDescuento == 1 ? (isDark ? '#42a5f5' : '#1565c0') : (isDark ? 'rgba(255,255,255,0.5)' : '#757575'),
+                                                border: `1px solid ${r.AplicaDescuento == 1 ? 'rgba(21,101,192,0.3)' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)')}` }} />
+                                    </Box>
+
+                                    {/* Prenda + Corte */}
+                                    <Typography fontWeight={700} fontSize="0.95rem" sx={{ lineHeight: 1.3, mb: 0.3 }}>{r.NombrePrenda || '—'}</Typography>
+                                    <Typography variant="body2" color="text.secondary" mb={r.NombreProveedor ? 0.4 : 0.8}>{r.NombreCorte || '—'}</Typography>
+                                    {r.NombreProveedor && (
+                                        <Typography variant="caption" color="text.secondary" display="block" mb={0.8} sx={{ opacity: 0.7 }}>{r.NombreProveedor}</Typography>
+                                    )}
+
+                                    {/* Cantidad faltante (destacada) */}
+                                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.8, mb: 1 }}>
+                                        <Typography variant="h4" fontWeight={800} sx={{ color: '#c62828', lineHeight: 1 }}>{r.CantidadFaltante}</Typography>
+                                        <Typography variant="body2" color="text.secondary" fontWeight={500}>piezas faltantes</Typography>
+                                    </Box>
+
+                                    {/* Motivo */}
+                                    {r.Motivo && (
+                                        <Typography variant="caption" color="text.secondary" display="block" mb={1}
+                                            sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                                            {r.Motivo}
+                                        </Typography>
+                                    )}
+
+                                    {/* Fecha */}
+                                    <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                                        {r.CreatedAt ? new Date(r.CreatedAt).toLocaleDateString('es-MX') : '—'}
+                                    </Typography>
+
+                                    <Box sx={{ height: '1px', bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', mb: 1.5 }} />
+
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                                         <Tooltip title="Eliminar">
                                             <IconButton size="small" onClick={() => { setConfirmId(r.Id); setConfirmCorteId(r.IdCorte); }}
-                                                sx={{ color: '#c62828', bgcolor: 'rgba(198,40,40,0.06)', borderRadius: '7px', '&:hover': { bgcolor: 'rgba(198,40,40,0.14)' } }}>
+                                                sx={{ color: '#c62828', bgcolor: 'rgba(198,40,40,0.06)', borderRadius: '8px', '&:hover': { bgcolor: 'rgba(198,40,40,0.14)' } }}>
                                                 <FontAwesomeIcon icon={faTrash} style={{ fontSize: 13 }} />
                                             </IconButton>
                                         </Tooltip>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                                    </Box>
+                                </Box>
+                            </Paper>
+                        </Grid>
+                    ))}
+                </Grid>
             )}
 
             {/* Dialog Registrar */}

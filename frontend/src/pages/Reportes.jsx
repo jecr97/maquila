@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  Box, Button, Card, CardContent, Paper, Skeleton, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TextField, Typography, Alert,
-  FormControl, InputLabel, MenuItem, Select, useTheme,
+  Box, Button, Card, CardContent, Paper, Skeleton, Typography, Alert,
+  FormControl, InputLabel, MenuItem, Select, useTheme, Divider, Chip, TextField
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faChartBar, faDownload, faLayerGroup, faGear, faCircleCheck,
   faTriangleExclamation, faDollarSign, faCubes, faExclamationCircle,
+  faListCheck, faAddressCard, faScissors
 } from '@fortawesome/free-solid-svg-icons';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -32,21 +32,30 @@ export default function Reportes() {
   const errorColor = theme.palette.error.main;
   const dividerColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15, 52, 96, 0.08)';
 
+  const today = new Date().toISOString().split('T')[0];
+
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
-  const [desde, setDesde]         = useState('');
-  const [hasta, setHasta]         = useState('');
+  const [desde, setDesde]         = useState(today);
+  const [hasta, setHasta]         = useState(today);
   const [dateErr, setDateErr]     = useState('');
   const [proveedores, setProveedores] = useState([]);
   const [idProveedor, setIdProveedor] = useState('');
 
   const loadData = useCallback(async () => {
+    // Solo consultar si hay 'desde' y 'hasta'
+    if (!desde || !hasta) {
+      // No hay rango completo: no hacemos la petición y desactivamos el loader
+      setLoading(false);
+      return;
+    }
+
     setLoading(true); setError('');
     try {
       const params = new URLSearchParams();
-      if (desde) params.set('desde', desde);
-      if (hasta) params.set('hasta', hasta);
+      params.set('desde', desde);
+      params.set('hasta', hasta);
       if (idProveedor) params.set('idProveedor', idProveedor);
       const [r, rProv] = await Promise.all([
         fetch(`${API_URL}/api/reportes/resumen?${params}`),
@@ -60,6 +69,14 @@ export default function Reportes() {
     } catch { setError('Error de conexión.'); }
     setLoading(false);
   }, [desde, hasta, idProveedor]);
+
+  useEffect(() => {
+    // Carga inicial de proveedores siempre necesaria
+    fetch(`${API_URL}/api/proveedores`)
+      .then(r => r.json())
+      .then(j => { if (j.success) setProveedores(j.data.filter(p => p.Status === 'Activo')); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -159,73 +176,127 @@ export default function Reportes() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(6,1fr)' }, gap: 2.5, mb: 3 }}>
           {[...Array(6)].map((_, i) => <Box key={i}><Skeleton variant="rounded" height={120} sx={{ borderRadius: '16px' }} /></Box>)}
         </Box>
+      ) : !desde || !hasta ? (
+        <Paper elevation={0} sx={{ textAlign: 'center', py: 10, bgcolor: 'rgba(15, 52, 96, 0.04)', borderRadius: '16px', border: '2px dashed rgba(15, 52, 96, 0.1)' }}>
+          <FontAwesomeIcon icon={faChartBar} style={{ fontSize: 48, color: '#94a3b8', marginBottom: 16, opacity: 0.5 }} />
+          <Typography variant="h6" fontWeight={700} color="primary.main">Selecciona un rango de fechas</Typography>
+          <Typography variant="body2" color="text.secondary">Ingresa la fecha inicial y final para generar los informes correspondientes.</Typography>
+        </Paper>
       ) : data && (<>
         {/* Stat cards */}
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)', md: 'repeat(6,1fr)' }, gap: 2.5, mb: 3 }}>
           {statCards.map(({ key, label, icon, gradient, shadow }) => (
-              <Card key={key} elevation={0} sx={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid', borderColor: dividerColor, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', '&:hover': { transform: 'translateY(-6px)', boxShadow: `0 12px 32px ${shadow}` } }}>
-                <Box sx={{ height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: gradient }}>
-                  <Box sx={{ position: 'absolute', right: -8, bottom: -8, opacity: 0.14, color: '#fff' }}>
-                    <FontAwesomeIcon icon={icon} style={{ fontSize: 82 }} />
-                  </Box>
-                  <Box sx={{ width: 54, height: 54, borderRadius: '14px', bgcolor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', border: '1.5px solid rgba(255,255,255,0.35)', zIndex: 1 }}>
-                    <FontAwesomeIcon icon={icon} style={{ color: '#fff', fontSize: 22 }} />
-                  </Box>
+            <Card key={key} elevation={0} sx={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid', borderColor: dividerColor, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', '&:hover': { transform: 'translateY(-6px)', boxShadow: `0 12px 32px ${shadow}` } }}>
+              <Box sx={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: gradient }}>
+                <Box sx={{ position: 'absolute', right: -4, bottom: -4, opacity: 0.15, color: '#fff' }}>
+                  <FontAwesomeIcon icon={icon} style={{ fontSize: 40 }} />
                 </Box>
-                <CardContent sx={{ py: 2.5, px: 2, textAlign: 'center' }}>
-                  <Typography variant="h4" fontWeight={800} sx={{ color: primaryDark, lineHeight: 1.1 }}>{data[key]}</Typography>
-                  <Typography variant="caption" sx={{ color: muted, fontWeight: 600, mt: 0.5, display: 'block' }}>{label}</Typography>
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
+                <FontAwesomeIcon icon={icon} style={{ color: '#fff', fontSize: 18, zIndex: 1 }} />
+              </Box>
+              <CardContent sx={{ py: 2, px: 2, textAlign: 'center' }}>
+                <Typography variant="h5" fontWeight={900} sx={{ color: primaryDark, lineHeight: 1 }}>{data[key]}</Typography>
+                <Typography variant="caption" sx={{ color: muted, fontWeight: 700, mt: 0.5, display: 'block', textTransform: 'uppercase', fontSize: '0.6rem' }}>{label}</Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
 
-        {/* Monto total */}
-        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'rgba(4,120,87,0.2)', borderRadius: '16px', p: 3, mb: 3, background: isDark ? 'rgba(4,120,87,0.06)' : 'rgba(4,120,87,0.03)', position: 'relative', overflow: 'hidden', '&::before': { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #047857, #10b981)' } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ width: 56, height: 56, borderRadius: '14px', background: 'linear-gradient(135deg, #047857, #10b981)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(4, 120, 87, 0.25)' }}>
-              <FontAwesomeIcon icon={faDollarSign} style={{ color: '#fff', fontSize: 24 }} />
-            </Box>
-            <Box>
-              <Typography variant="caption" sx={{ color: muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Monto Total Ganado</Typography>
-              <Typography variant="h4" fontWeight={800} sx={{ color: '#2e7d32', lineHeight: 1.2 }}>{fmt(data.montoTotal)}</Typography>
-            </Box>
+        {/* Monto total destacado */}
+        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'rgba(4,120,87,0.2)', borderRadius: '16px', p: 2.5, mb: 4, background: isDark ? 'linear-gradient(135deg, rgba(4,120,87,0.1) 0%, rgba(16,185,129,0.05) 100%)' : 'rgba(4,120,87,0.03)', display: 'flex', alignItems: 'center', gap: 2.5 }}>
+          <Box sx={{ width: 50, height: 50, borderRadius: '14px', background: 'linear-gradient(135deg, #047857, #10b981)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 16px rgba(4, 120, 87, 0.2)' }}>
+            <FontAwesomeIcon icon={faDollarSign} style={{ color: '#fff', fontSize: 22 }} />
+          </Box>
+          <Box>
+            <Typography variant="caption" sx={{ color: isDark ? '#10b981' : '#047857', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Total Estimado General</Typography>
+            <Typography variant="h4" fontWeight={900} sx={{ color: '#2e7d32', lineHeight: 1.1 }}>{fmt(data.montoTotal)}</Typography>
           </Box>
         </Paper>
 
-        {/* Tabla faltantes detalle */}
-        {data.faltantesDetalle?.length > 0 && (
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 800, color: primaryDark, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FontAwesomeIcon icon={faTriangleExclamation} style={{ color: '#c62828', fontSize: 18 }} />
-              Detalle de Piezas Faltantes
-            </Typography>
-            <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: dividerColor, borderRadius: '16px', overflowX: 'auto', overflow: 'hidden' }}>
-              <Table sx={{ minWidth: 500 }}>
-                <TableHead>
-                  <TableRow sx={{ background: `linear-gradient(135deg, ${primaryDark}, ${primaryMain})` }}>
-                    {['Folio', 'Prenda', 'Corte', 'Total Faltantes'].map(h => (
-                      <TableCell key={h} sx={{ color: '#fff', fontWeight: 700, fontSize: '0.82rem', py: 2, borderBottom: 'none' }}>{h}</TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {data.faltantesDetalle.map((f, i) => (
-                    <TableRow key={i} sx={{ '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15, 52, 96, 0.03)' }, '&:last-child td': { borderBottom: 'none' } }}>
-                      <TableCell sx={{ fontWeight: 700, color: primaryMain, fontFamily: 'monospace' }}>{f.Folio}</TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: primaryDark }}>{f.NombrePrenda || '—'}</TableCell>
-                      <TableCell sx={{ color: muted }}>{f.NombreCorte || '—'}</TableCell>
-                      <TableCell>
-                        <Typography fontWeight={800} sx={{ color: '#c62828', bgcolor: 'rgba(198,40,40,0.08)', display: 'inline-block', px: 1.5, py: 0.3, borderRadius: '6px', fontSize: '0.9rem' }}>{f.TotalFaltante}</Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
-        )}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4 }}>
+          {/* Box 1: Tipos de Corte */}
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '20px', border: '1px solid', borderColor: dividerColor, boxShadow: '0 10px 30px rgba(0,0,0,0.04)', bgcolor: 'background.paper' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+              <Box sx={{ width: 42, height: 42, borderRadius: '11px', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                <FontAwesomeIcon icon={faScissors} />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight={800} color="primary.main">Desglose por Corte</Typography>
+                <Typography variant="caption" color="text.secondary">Distribución de tipos de corte realizados</Typography>
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {(data.cortesPorTipo || []).map((t, idx) => (
+                <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderRadius: '12px', bgcolor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(15, 52, 96, 0.02)', border: '1px solid transparent', '&:hover': { borderColor: 'primary.light', bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15, 52, 96, 0.04)' } }}>
+                  <Typography variant="body2" fontWeight={700} color="text.primary">{t.NombreCorte}</Typography>
+                  <Chip label={`${t.TotalPiezas} pzas`} size="small" sx={{ fontWeight: 800, bgcolor: 'primary.main', color: '#fff' }} />
+                </Box>
+              ))}
+              {(!data.cortesPorTipo || data.cortesPorTipo.length === 0) && (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', fontStyle: 'italic', py: 2 }}>No hay datos descriptivos para mostrar.</Typography>
+              )}
+            </Box>
+          </Paper>
+
+          {/* Box 2: Faltantes */}
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '20px', border: '1px solid', borderColor: 'rgba(198,40,40,0.1)', boxShadow: '0 10px 30px rgba(198,40,40,0.04)', bgcolor: 'background.paper' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+              <Box sx={{ width: 42, height: 42, borderRadius: '11px', bgcolor: '#c62828', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                <FontAwesomeIcon icon={faTriangleExclamation} />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight={800} color="#c62828">Piezas Faltantes</Typography>
+                <Typography variant="caption" color="text.secondary">Incidencias y faltantes reportados</Typography>
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {(data.faltantesDetalle || []).map((f, idx) => (
+                <Box key={idx} sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(198,40,40,0.02)', border: '1px solid rgba(198,40,40,0.1)' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="body2" fontWeight={800} color="#c62828">{f.NombreCorte}</Typography>
+                    <Typography variant="body2" fontWeight={900} sx={{ color: '#c62828' }}>{f.TotalFaltante} pzas</Typography>
+                  </Box>
+                  <Typography variant="caption" sx={{ color: muted, fontWeight: 600 }}>{f.NombrePrenda} · Folio: {f.Folio}</Typography>
+                </Box>
+              ))}
+              {(!data.faltantesDetalle || data.faltantesDetalle.length === 0) && (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', fontStyle: 'italic', py: 2 }}>Sin faltantes registrados en este periodo.</Typography>
+              )}
+            </Box>
+          </Paper>
+
+          {/* Box 3: Proveedores */}
+          <Paper elevation={0} sx={{ p: 3, borderRadius: '20px', border: '1px solid', borderColor: dividerColor, boxShadow: '0 10px 30px rgba(0,0,0,0.04)', bgcolor: 'background.paper', gridColumn: { md: '1 / span 2' } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+              <Box sx={{ width: 42, height: 42, borderRadius: '11px', bgcolor: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                <FontAwesomeIcon icon={faAddressCard} />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight={800} color="#b45309">Producción por Proveedor</Typography>
+                <Typography variant="caption" color="text.secondary">Cortes asignados y piezas procesadas</Typography>
+              </Box>
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: '1fr 1fr 1fr' }, gap: 2 }}>
+              {(data.cortesPorProveedor || []).map((p, idx) => (
+                <Box key={idx} sx={{ p: 2, borderRadius: '16px', border: '1px solid', borderColor: dividerColor, bgcolor: isDark ? 'rgba(255,255,255,0.01)' : '#fff' }}>
+                  <Typography variant="subtitle2" fontWeight={800} color="text.primary" sx={{ mb: 1.5, borderBottom: '1px solid', borderColor: dividerColor, pb: 1 }}>{p.NombreProveedor}</Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="caption" fontWeight={600} color="text.secondary">Número de Cortes</Typography>
+                    <Typography variant="body2" fontWeight={800}>{p.TotalCortes}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="caption" fontWeight={600} color="text.secondary">Total Piezas</Typography>
+                    <Typography variant="body2" fontWeight={800} color="primary.main">{p.TotalPiezas}</Typography>
+                  </Box>
+                </Box>
+              ))}
+              {(!data.cortesPorProveedor || data.cortesPorProveedor.length === 0) && (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', fontStyle: 'italic', py: 2, gridColumn: '1 / -1' }}>No se encontraron cortes para los criterios seleccionados.</Typography>
+              )}
+            </Box>
+          </Paper>
+        </Box>
       </>)}
     </Box>
   );
 }
+ 
